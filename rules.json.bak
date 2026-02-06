@@ -1,0 +1,82 @@
+[
+    {
+        "code": "SEC-001",
+        "keys": [
+            "function_calls"
+        ],
+        "condition": "name in ['eval', 'exec', 'compile', '__import__']",
+        "message": "Запрещено использование опасной функции '{name}' (строка {lineno})",
+        "severity": "error"
+    },
+    {
+        "code": "SEC-002",
+        "keys": [
+            "imports",
+            "import_from"
+        ],
+        "condition": "name in ['sys', 'subprocess', 'pickle', 'socket', 'ctypes']", 
+        "message": "Запрещён импорт модуля '{name}' (строка {lineno})",
+        "severity": "error"
+    },
+    {
+        "code": "RE-001",
+        "keys": [
+            "imports"
+        ],
+        "condition": "name == 're'",
+        "message": "Импорт модуля 're' запрещён в учебных заданиях (строка {lineno})",
+        "severity": "warning"
+    },
+    {
+        "code": "STYLE-001",
+        "keys": [
+            "store_vars",
+            "declared_vars"
+        ],
+        "condition": "not snakecase and not dunderscore and not name.startswith('_') and name not in BUILTIN_NAMES and len(name) > 1",
+        "message": "Имя переменной '{name}' должно быть в snake_case (строка {lineno})",
+        "severity": "warning"
+    },
+    {
+        "code": "SYNTAX-001",
+        "keys": [
+            "store_vars",
+            "declared_vars",
+            "function_names",
+            "class_names"
+        ],
+        "condition": "startdigit",
+        "message": "Имя '{name}' не может начинаться с цифры (строка {lineno})",
+        "severity": "error"
+    },
+    {
+        "code": "STYLE-002",
+        "keys": [
+            "class_names"
+        ],
+        "condition": "not camelcase and not dunderscore and not name.startswith('_')",
+        "message": "Имя класса '{name}' должно быть в PascalCase (строка {lineno})",
+        "severity": "warning"
+    },
+    {
+        "code": "NAMING-001",
+        "keys": [
+            "store_vars"
+        ],
+        "condition": "name in BUILTIN_NAMES",
+        "message": "Переменная '{name}' перекрывает встроенное имя (строка {lineno})",
+        "severity": "warning"
+    },
+    {
+        "code": "SEC-003",
+        "keys": [
+            "store_vars",
+            "load_vars",
+            "function_names",
+            "class_names"
+        ],
+        "condition": "len(name) == 1 and name in 'oOlI'",
+        "message": "Подозрительное имя '{name}' визуально похожа на другие символы (0/O, 1/l/I) (строка {lineno})",
+        "severity": "warning"
+    }
+]

@@ -173,7 +173,7 @@ cython_debug/
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+.idea/
 
 # Abstra
 # Abstra is an AI-powered process automation framework.
@@ -186,7 +186,7 @@ cython_debug/
 #  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
 #  and can be added to the global gitignore or merged into this file. However, if you prefer, 
 #  you could uncomment the following to ignore the entire vscode folder
-# .vscode/
+.vscode/
 
 # Ruff stuff:
 .ruff_cache/
@@ -205,3 +205,65 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+*.json
+ *.pyc
+ *.pyo
+ *.rej
+ *~
+ *#
+ *.swp
+ *.bak
+ *.orig
+ *.save
+ *.tmp
+ *.log
+ *.lock
+ *.out
+ *.csv
+ *.tsv
+ *.txt
+ *.pdf
+ *.doc
+ *.docx
+ *.xls
+ *.xlsx
+ *.ppt
+ *.pptx
+ *.zip
+ *.rar
+ *.7z
+ *.gz
+ *.tar
+ *.tgz
+ *.bz2
+ *.jpg
+ *.jpeg
+ *.png
+ *.gif
+ *.svg
+ *.mp3
+ *.wav
+ *.aac
+ *.flac
+ *.ogg
+ *.m4a
+ *.wma
+ *.ape
+ *.mp4
+ *.mov
+ *.avi
+ *.mkv
+ *.webm
+ *.ts
+ *.mpeg
+ *.mpg
+ *.mpe
+ *.3gp
+ *.3g2
+ *.m2v
+ *.m4v
+ *.f4v
+ *.swf
+ *.d
+
