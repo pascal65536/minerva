@@ -346,6 +346,7 @@ class RuleEditorWidget(QWidget):
             else Qt.SortOrder.AscendingOrder
         )
         reverse = self.sort_order == Qt.SortOrder.DescendingOrder
+
         def get_sort_key(rule, col):
             if col == 0:
                 return rule.get("code", "").strip().lower()
@@ -361,6 +362,7 @@ class RuleEditorWidget(QWidget):
                 cond = rule.get("condition", "").strip()
                 return cond[:50].lower() if cond else ""
             return ""
+
         self.rules_data.sort(key=lambda r: get_sort_key(r, column), reverse=reverse)
         self.refresh_table()
         self.table.horizontalHeader().setSortIndicator(column, self.sort_order)
@@ -617,7 +619,9 @@ class RuleEditorWidget(QWidget):
             )
 
     def load_json_file(self):
-        """Загружает правила из JSON файла с автоматической очисткой от пробелов"""
+        """
+        Загружает правила из JSON файла с автоматической очисткой от пробелов
+        """
         file_path, _ = QFileDialog.getOpenFileName(
             self, "Загрузить правила", "", "JSON (*.json);;Все файлы (*)"
         )
@@ -729,6 +733,7 @@ class RuleEditorApp(QMainWindow):
     """
     Главное окно приложения редактора правил
     """
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Редактор правил AST анализатора")

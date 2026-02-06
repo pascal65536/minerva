@@ -16,6 +16,7 @@ KEYS = [
     "imports",
     "load_vars",
     "store_vars",
+    "assigned_types",  # <-- добавлено
 ]
 
 BUILTIN_NAMES = {
@@ -92,6 +93,7 @@ class ASTJSONAnalyzer:
             "declared_vars": defaultdict(set),
             "class_names": defaultdict(set),
             "function_names": defaultdict(set),
+            "assigned_types": defaultdict(list),
             "current_scope": "global",
             "scope_stack": ["global"],
         }
@@ -145,8 +147,41 @@ class ASTJSONAnalyzer:
                         self.context["function_calls"][func_name].add(lineno)
                 case "Assign":
                     targets = node.get("targets", [])
+                    value_node = node.get("value", {})
+                    value_info = {"type": None, "repr": None}
+                    if value_node.get("_type") == "Constant":
+                        val = value_node.get("value")
+                        value_info["type"] = type(val).__name__
+                        value_info["repr"] = repr(val)
+                    elif value_node.get("_type") == "List":
+                        value_info["type"] = "list"
+                        value_info["repr"] = "[...]"
+                    elif value_node.get("_type") == "Dict":
+                        value_info["type"] = "dict"
+                        value_info["repr"] = "{...}"
+                    elif value_node.get("_type") == "Tuple":
+                        value_info["type"] = "tuple"
+                        value_info["repr"] = "(...)"
+                    elif value_node.get("_type") == "Set":
+                        value_info["type"] = "set"
+                        value_info["repr"] = "{...}"
+                    elif value_node.get("_type") == "Call":
+                        value_info["type"] = "unknown"
+                        value_info["repr"] = "<call>"
+                    else:
+                        value_info["type"] = "unknown"
+                        value_info["repr"] = "<unknown>"
+
                     for target in targets:
-                        self.collect_context(target)
+                        if isinstance(target, dict) and target.get("_type") == "Name":
+                            var_name = target.get("id", "")
+                            self.context["store_vars"][var_name].add(lineno)
+                            self.context["declared_vars"][var_name].add(lineno)
+                            self.context["assigned_types"][var_name].append({
+                                "type": value_info["type"],
+                                "repr": value_info["repr"],
+                                "lineno": lineno
+                            })
                 case "FunctionDef":
                     func_name = node.get("name", "<anonymous>")
                     self.context["function_names"][func_name].add(lineno)
@@ -183,8 +218,19 @@ class ASTJSONAnalyzer:
                 if name not in group_dct:
                     group_dct[name] = {"lines": []}
                 group_dct[name].setdefault(key, []).extend(line_numbers)
-                group_dct[name]["lines"].extend(line_numbers)
+                if key != "assigned_types":
+                    group_dct[name]["lines"].extend(line_numbers)
         
+        if "assigned_types" in self.context:
+            for name, assignments in self.context["assigned_types"].items():
+                if name not in group_dct:
+                    group_dct[name] = {"lines": []}
+                group_dct[name]["assigned_types"] = assignments
+                first = assignments[0]
+                group_dct[name]["value_type"] = first["type"]
+                group_dct[name]["value_repr"] = first["repr"]
+                group_dct[name]["lines"].append(first["lineno"])
+
         for name, data in group_dct.items():
             data["lineno"] = min(data["lines"]) if data["lines"] else 0
             data["keys"] = [ctx_key for ctx_key in KEYS if ctx_key in data]
@@ -244,7 +290,12 @@ class ASTJSONAnalyzer:
                 if eval(compiled_condition, {"__builtins__": {}}, safe_context):
                     violations.append({
                         "code": rule["code"],
-                        "message": rule["message"].format(name=name, lineno=value.get('lineno', 0)),
+                        "message": rule["message"].format(
+                            name=name,
+                            lineno=value.get('lineno', 0),
+                            value_type=value.get('value_type', 'unknown'),
+                            value_repr=value.get('value_repr', '<unknown>')
+                        ),
                         "severity": rule["severity"],
                         "lineno": value.get('lineno', 0),
                         "name": name,

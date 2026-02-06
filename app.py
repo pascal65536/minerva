@@ -17,9 +17,11 @@ from behoof import load_json, save_json
 
 
 class RuleEditorWidget(QWidget):
-    """Виджет редактора правил для интеграции в основное окно"""
-    rule_saved = pyqtSignal(dict, int)      # правило, индекс (-1 для нового)
-    rule_deleted = pyqtSignal(int)          # индекс правила
+    """
+    Виджет редактора правил для интеграции в основное окно
+    """
+    rule_saved = pyqtSignal(dict, int)
+    rule_deleted = pyqtSignal(int)
     rule_cancelled = pyqtSignal()
 
     def __init__(self, rule=None, rule_index=-1, context_keys=None, parent=None):
@@ -80,10 +82,10 @@ class RuleEditorWidget(QWidget):
         self.condition_edit.setFont(QFont("Consolas", 10))
         self.condition_edit.setPlaceholderText(
             "Доступные переменные:\n"
-            "  • name, keys, lineno\n"
-            "  • snakecase, camelcase, startdigit, dunderscore\n"
-            "  • BUILTIN_NAMES\n"
-            "  • len(), any(), all()\n\n"
+            "  - name, keys, lineno\n"
+            "  - snakecase, camelcase, startdigit, dunderscore\n"
+            "  - BUILTIN_NAMES\n"
+            "  - len(), any(), all()\n\n"
             "Примеры:\n"
             "  name in ['eval', 'exec']\n"
             "  not snakecase and not dunderscore\n"
@@ -131,7 +133,9 @@ class RuleEditorWidget(QWidget):
         layout.addStretch()
 
     def get_selected_keys(self):
-        """Получает список выбранных ключей"""
+        """
+        Получает список выбранных ключей
+        """
         return [
             self.keys_list.item(i).text()
             for i in range(self.keys_list.count())
@@ -139,7 +143,9 @@ class RuleEditorWidget(QWidget):
         ]
 
     def save_rule(self):
-        """Сохраняет правило и генерирует сигнал"""
+        """
+        Сохраняет правило и генерирует сигнал
+        """
         code = self.code_edit.text().strip()
         if not code:
             QMessageBox.warning(self, "Ошибка", "Код правила не может быть пустым!")
@@ -170,7 +176,7 @@ class RuleEditorWidget(QWidget):
 class CodeCheckerApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AST Educational Code Checker — Редактор правил встроенный")
+        self.setWindowTitle("AST Educational Code Checker")
         self.resize(1600, 950)
         self.code_lines = []
         self.current_file = None
@@ -322,7 +328,9 @@ class CodeCheckerApp(QMainWindow):
         self.statusBar().showMessage("Готов к анализу кода — загрузите файл или введите код")
 
     def clear_all(self):
-        """Очистка всех полей"""
+        """
+        Очистка всех полей
+        """
         self.code_editor.clear()
         self.clear_results()
         self.hide_rule_editor()
@@ -334,7 +342,9 @@ class CodeCheckerApp(QMainWindow):
         self.statusBar().showMessage("Очищено")
 
     def clear_results(self):
-        """Очистка таблицы результатов"""
+        """
+        Очистка таблицы результатов
+        """
         self.results_table.setRowCount(0)
         self.results_table.clearContents()
         self.rules_table.setRowCount(0)
@@ -359,7 +369,9 @@ class CodeCheckerApp(QMainWindow):
             QMessageBox.critical(self, "Ошибка", f"Не удалось загрузить файл:\n{str(e)}")
 
     def clean_rule(self, rule):
-        """Очищает правило от пробелов в ключах и исправляет ошибки в условиях"""
+        """
+        Очищает правило от пробелов в ключах и исправляет ошибки в условиях
+        """
         clean = {}
         for key, value in rule.items():
             clean_key = key.strip()
@@ -382,7 +394,9 @@ class CodeCheckerApp(QMainWindow):
         return clean
 
     def load_rules(self):
-        """Загружает правила из JSON с автоматической очисткой"""
+        """
+        Загружает правила из JSON с автоматической очисткой
+        """
         try:
             raw_rules = load_json('data', 'rules.json')
             if not isinstance(raw_rules, list):
@@ -412,7 +426,9 @@ class CodeCheckerApp(QMainWindow):
             self.display_rules_table()
 
     def get_default_rules(self):
-        """Правила по умолчанию"""
+        """
+        Правила по умолчанию
+        """
         return [
             {
                 "code": "SEC-001",
@@ -438,7 +454,9 @@ class CodeCheckerApp(QMainWindow):
         ]
 
     def display_rules_table(self, filtered_rules=None):
-        """Отображает правила в таблице"""
+        """
+        Отображает правила в таблице
+        """
         rules = filtered_rules if filtered_rules is not None else self.current_rules
         self.rules_table.setRowCount(len(rules))
         
@@ -553,7 +571,9 @@ class CodeCheckerApp(QMainWindow):
             self.analyze_btn.setEnabled(True)
 
     def display_all_lines(self):
-        """Отображает ВСЕ строки кода"""
+        """
+        Отображает все строки кода
+        """
         self.clear_results()
         self.code_lines = self.code_editor.toPlainText().splitlines()
         
@@ -634,7 +654,9 @@ class CodeCheckerApp(QMainWindow):
         self.results_table.scrollToTop()
 
     def on_line_selected(self, item):
-        """Обработчик клика по строке кода"""
+        """
+        Обработчик клика по строке кода
+        """
         if not item:
             return
         
@@ -654,7 +676,9 @@ class CodeCheckerApp(QMainWindow):
             self.statusBar().showMessage(f"Строка {self.selected_line} не содержит ошибок")
 
     def on_rule_selected(self, item):
-        """Обработчик клика по правилу — открывает редактор"""
+        """
+        Обработчик клика по правилу — открывает редактор
+        """
         if not item:
             return
         
@@ -677,7 +701,9 @@ class CodeCheckerApp(QMainWindow):
                 self.show_rule_editor(rule, self.selected_rule_index)
 
     def show_rule_editor(self, rule=None, rule_index=-1):
-        """Открывает редактор правил как виджет справа"""
+        """
+        Открывает редактор правил как виджет справа
+        """
         # Очистка контейнера
         layout = self.rule_editor_container.layout()
         if layout:
@@ -685,7 +711,7 @@ class CodeCheckerApp(QMainWindow):
                 child = layout.takeAt(0)
                 if child.widget():
                     child.widget().deleteLater()
-            QWidget().setLayout(layout)  # Отсоединяем старый лейаут
+            QWidget().setLayout(layout)
         
         # Создание редактора
         editor = RuleEditorWidget(rule, rule_index, self.context_keys, self)
@@ -698,11 +724,15 @@ class CodeCheckerApp(QMainWindow):
         self.rule_editor_container.show()
 
     def hide_rule_editor(self):
-        """Скрывает редактор правил"""
+        """
+        Скрывает редактор правил
+        """
         self.rule_editor_container.hide()
 
     def on_rule_saved(self, rule, rule_index):
-        """Обработчик сохранения правила"""
+        """
+        Обработчик сохранения правила
+        """
         if rule_index >= 0 and rule_index < len(self.current_rules):
             # Редактирование существующего
             self.current_rules[rule_index] = rule
@@ -722,7 +752,9 @@ class CodeCheckerApp(QMainWindow):
         self.statusBar().showMessage(msg, 3000)
 
     def save_rules_to_file(self):
-        """Сохраняет правила в файл"""
+        """
+        Сохраняет правила в файл
+        """
         if not self.current_rules:
             QMessageBox.warning(self, "Предупреждение", "Нет правил для сохранения!")
             return
@@ -750,7 +782,9 @@ class CodeCheckerApp(QMainWindow):
             QMessageBox.critical(self, "Ошибка", f"Не удалось сохранить правила:\n{str(e)}")
 
     def closeEvent(self, event):
-        """Подтверждение закрытия"""
+        """
+        Подтверждение закрытия
+        """
         if self.code_editor.toPlainText().strip() and not self.current_file:
             reply = QMessageBox.question(
                 self, "Подтверждение",
