@@ -6,6 +6,7 @@ import json
 import re
 import sys
 
+password = 'qwertyuiopasdfghjklzxcvbnm'
 
 class Checker:
     def __init__(self, filepath):
