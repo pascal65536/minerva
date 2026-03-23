@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анализ Python-файлов</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .layout {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .file-list {
+            flex: 0 0 300px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .report-area {
+            flex: 1;
+        }
+
+        .file-item {
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .file-item:hover {
+            background-color: #f1f1f1;
+        }
+
+        .file-item.active {
+            background-color: #e7f3ff;
+            border-right: 3px solid #0d6efd;
+        }
+
+        .no-issues {
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .path-text {
+            font-family: monospace;
+            font-size: 0.875em;
+            color: #6c757d;
+        }
+
+        .issue-item {
+            border-left: 5px solid;
+            padding: 1rem;
+            background: #fff;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+        }
+
+        .issue-bandit {
+            border-left-color: #dc3545;
+            color: #842029;
+        }
+
+        .issue-pylint {
+            border-left-color: #ffc107;
+            color: #665c00;
+        }
+
+        .issue-flake8 {
+            border-left-color: #198754;
+            color: #0f5132;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            /* чтобы текст переносился */
+            font-family: "Courier New", Courier, monospace;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+
+    <div class="container py-4">
+        <h1 class="mb-4">🔍 Анализатор Python-проектов</h1>
+
+        <!-- Flash-сообщения -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show"
+            role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <!-- Ввод пути к директории -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                📁 Укажите путь к директории проекта
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="project_path" class="form-label">Полный путь к папке с Python-файлами</label>
+                        <input type="text" class="form-control" name="project_path" id="project_path"
+                            placeholder="/home/user/myproject" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Сканировать и проанализировать</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Основной макет: список файлов + отчет -->
+        {% if files and files|length > 0 %}
+        <div class="layout">
+            <!-- Левая колонка: список файлов -->
+            <div class="file-list card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    📄 Файлы проекта
+                    <a href="{{ url_for('refresh_all') }}" class="btn btn-sm btn-outline-secondary">Обновить все</a>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for key, info in files.items() %}
+                    <li class="list-group-item p-0">
+                        <a href="{{ url_for('index', key=key) }}" class="file-item w-100 d-block text-decoration-none text-dark 
+                                  {% if key == selected_key %}active{% endif %}">
+                            <div>{{ info.filename }}</div>
+                            <div class="path-text">{{ info.display_path }}</div>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Правая колонка: отчет -->
+            <div class="report-area">
+                {% if selected_key and selected_file_info %}
+                <div class="card">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        📊 Отчет: <strong>{{ selected_file_info.filename }}</strong>
+                        <div>
+                            <span class="badge bg-secondary me-2">{{ selected_file_info.display_path }}</span>
+                            <a href="{{ url_for('refresh', key=selected_key) }}"
+                                class="btn btn-sm btn-warning">Обновить</a>
+                        </div>
+                    </div>
+                    <div class="p-4">
+
+<div class="progress-stacked">
+  <div class="progress" role="progressbar" aria-label="Segment primary" aria-valuenow="{{ progress_dct.primary1 }}" aria-valuemin="0" aria-valuemax="100" style="width: {{ progress_dct.primary1 }}%">
+    <div class="progress-bar bg-primary"></div>
+  </div>
+  <div class="progress" role="progressbar" aria-label="Segment warning" aria-valuenow="{{ progress_dct.warning1 }}" aria-valuemin="0" aria-valuemax="100" style="width: {{ progress_dct.warning1 }}%">
+    <div class="progress-bar bg-warning"></div>
+  </div>
+  <div class="progress" role="progressbar" aria-label="Segment danger" aria-valuenow="{{ progress_dct.danger1 }}" aria-valuemin="0" aria-valuemax="100" style="width: {{ progress_dct.danger1 }}%">
+    <div class="progress-bar bg-danger"></div>
+  </div>
+  <div class="progress" role="progressbar" aria-label="Segment success" aria-valuenow="{{ progress_dct.success1 }}" aria-valuemin="0" aria-valuemax="100" style="width: {{ progress_dct.success1 }}%">
+    <div class="progress-bar bg-success"></div>
+  </div>  
+  <div class="progress" role="progressbar" aria-label="Segment secondary" aria-valuenow="{{ progress_dct.secondary1 }}" aria-valuemin="0" aria-valuemax="100" style="width: {{ progress_dct.secondary1 }}%">
+    <div class="progress-bar bg-secondary"></div>
+  </div>
+</div>
+
+                    </div>
+                    <div class="card-body">
+
+                        <div class="row g-3">
+                            {% for row in table_data %}
+                            <div class="col-12">
+                                <div
+                                    class="issue-item {{ row.border }}">
+                                    <div><strong>Номер строки:</strong> {{ row.line }}</div>
+                                    {% if row.bandit %}
+                                    <div class="issue-bandit mt-2 p-2 bg-light rounded">
+                                        <h5>Bandit</h5>
+                                        <p><b>{{ row.bandit.test_id }}: <a href="{{ row.bandit.more_info }}">{{ row.bandit.test_name }}</a></b></p>
+                                        <p><b><a href="{{ row.bandit.issue_cwe.link }}">{{ row.bandit.issue_cwe.id }}</a> {{ row.bandit.issue_severity }} /  {{ row.bandit.issue_confidence }}</p></b></p>
+                                        <p>{{ row.bandit.issue_text }}</p>
+                                        <pre><code>{{ row.bandit.code }}</code></pre>
+                                    </div>
+                                    {% endif %}
+                                    {% if row.pylint %}
+                                    <div class="issue-pylint mt-2 p-2 bg-light rounded">
+                                        <h5>Pylint</h5>
+                                        <p><b>{{ row.pylint.message_id }}: {{ row.pylint.message }}</b></p>
+                                        <!-- <pre>{{ row.pylint }}</pre> -->
+                                    </div>
+                                    {% endif %}
+                                    {% if row.flake8 %}
+                                    <div class="issue-flake8 mt-2 p-2 bg-light rounded">
+                                        <h5>Flake8</h5>
+                                        <p><b>{{ row.flake8.code }}: {{ row.flake8.text }}</b></p>
+                                        {% if row.flake8.physical_line %}
+                                        <pre><code>{{ row.flake8.physical_line }}</code></pre>
+                                        {% endif %}
+                                        <!-- <pre>{{ row.flake8 }}</pre> -->
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+
+                    </div>
+                </div>
+                {% else %}
+                <div class="card">
+                    <div class="card-body text-center text-muted">
+                        → Выберите файл слева для просмотра отчета
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
