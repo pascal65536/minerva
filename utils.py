@@ -4,6 +4,8 @@ import json
 import re
 from collections import defaultdict
 import pprint
+from behoof import save_json
+
 
 transform_dct = {
     "code": None,
@@ -49,7 +51,7 @@ def parse_pycodestyle_text(raw_output):
         message = message.strip()
         item = {"line": line_no, "column": col_no, "code": code, "message": message}
         errors.append(item)
-    return json.dumps({"errors": errors}, indent=2, ensure_ascii=False)
+    return errors
 
 
 def run_bandit(filepath):
@@ -61,15 +63,13 @@ def run_bandit(filepath):
 def run_pylint(filepath):
     task = ["pylint", filepath, "--output-format=json"]
     result = subprocess.run(task, capture_output=True, text=True)
-    return json.dumps({"errors": result.stdout}, indent=2, ensure_ascii=False)
+    return json.loads(result.stdout)
 
 
 def run_flake8(filepath):
     task = ["flake8", filepath, "--format=json"]
     result = subprocess.run(task, capture_output=True, text=True)
     res = []
-    import ipdb; ipdb.set_trace()
-    
     for _, value in json.loads(result.stdout).items():
         res.extend(value)
     return res
@@ -78,7 +78,10 @@ def run_flake8(filepath):
 def run_mypy(filepath):
     task = ["mypy", filepath, "--output=json"]
     result = subprocess.run(task, capture_output=True, text=True)
-    return result.stdout
+    res = []
+    for row in result.stdout.splitlines():
+        res.append(json.loads(row))
+    return res
 
 
 def run_vulture(filepath):
@@ -102,7 +105,7 @@ def transform_flake8_to_vulture(flake8_output):
             "line": int(flake8_output["line_number"]),
             "column": int(flake8_output["column_number"]),
             "message": flake8_output["text"],
-            "physical": flake8_output["physical_line"],
+            "physical": flake8_output["physical_line"].rstrip(),
             "checker": "flake8",
         }
     )
@@ -115,12 +118,12 @@ def transform_bandit_to_vulture(bandit_output):
         {
             "code": bandit_output["test_id"],
             "code_name": bandit_output["test_name"],
-            "file": bandit_output["filename"],
+            "file": bandit_output["filename"].strip('.'),
             "line": int(bandit_output["line_number"]),
             "column": int(bandit_output["col_offset"]),
             "column_end": int(bandit_output["end_col_offset"]),
             "message": bandit_output["issue_text"],
-            "physical": bandit_output["code"],
+            "physical": bandit_output["code"].rstrip(),
             "more_info": bandit_output["more_info"],
             "issue_confidence": bandit_output["issue_confidence"],
             "issue_cwe_id": bandit_output["issue_cwe"]["id"],
@@ -132,31 +135,119 @@ def transform_bandit_to_vulture(bandit_output):
     return local_dct
 
 
+def transform_pylint_to_vulture(pylint_output):
+    local_dct = deepcopy(transform_dct)
+    local_dct.update(
+        {
+            "checker": "pylint",
+            "code": pylint_output["message-id"],
+            "code_name": pylint_output["symbol"],
+            "issue_confidence": pylint_output["type"].upper(),
+            "file": pylint_output["path"],
+            "line": pylint_output["line"],
+            "column": pylint_output["column"],
+            "column_end": pylint_output["endColumn"],
+            "message": pylint_output["message"],
+            "physical": pylint_output["obj"].rstrip(),
+        }
+    )
+    return local_dct
+
+
+def transform_mypy_to_vulture(mypy_output):
+    local_dct = deepcopy(transform_dct)
+    code_str = mypy_output["code"]
+    code = f"MY{sum(map(ord, code_str))}"    
+    local_dct.update(
+        {
+            "code": code,
+            "checker": "mypy",
+            "code_name": mypy_output["code"],
+            "issue_confidence": mypy_output["severity"].upper(),
+            "file": mypy_output["file"],
+            "line": mypy_output["line"],
+            "column": mypy_output["column"],
+            "message": mypy_output["message"],
+            "physical": mypy_output["hint"],
+        }
+    )
+    return local_dct
+
+
+def transform_vulture_to_vulture(vulture_output):
+    local_dct = deepcopy(transform_dct)
+    code_str = "".join(vulture_output["message"].split()[:2])
+    code = f"VU{sum(map(ord, code_str))}"
+    local_dct.update(
+        {
+            "code": code,
+            "checker": "vulture",
+            "file": vulture_output["file"],
+            "line": vulture_output["line"],
+            "message": vulture_output["message"],
+        }
+    )
+    return local_dct
+
+
+def transform_pycodestyle_to_vulture(pycodestyle_output):
+    local_dct = deepcopy(transform_dct)
+    local_dct.update(
+        {
+            "checker": "vulture",
+            "code": pycodestyle_output["code"],
+            "column": pycodestyle_output["column"],
+            "line": pycodestyle_output["line"],
+            "message": pycodestyle_output["message"],
+        }
+    )
+    return local_dct
+
+
 if __name__ == "__main__":
-    filename = "fixtures/sample.py"
+    filename = "fixtures/script_clean.py"
 
     group_line = defaultdict(list)
+    group_code = defaultdict(list)
 
     res = run_flake8(filename)
     for flake8_output in res:
         r = transform_flake8_to_vulture(flake8_output)
         group_line[r["line"]].append(r)
+        group_code[r["code"]].append(r)
 
     res = run_bandit(filename)
     for bandit_output in res:
         r = transform_bandit_to_vulture(bandit_output)
         group_line[r["line"]].append(r)
-    pprint.pprint(group_line)
-    exit()
+        group_code[r["code"]].append(r)
 
     res = run_pylint(filename)
-    print(res)
+    for pylint_output in res:
+        r = transform_pylint_to_vulture(pylint_output)
+        group_line[r["line"]].append(r)
+        group_code[r["code"]].append(r)
 
     res = run_mypy(filename)
-    print(res)
+    for mypy_output in res:
+        r = transform_mypy_to_vulture(mypy_output)
+        group_line[r["line"]].append(r)
+        group_code[r["code"]].append(r)
 
     res = run_vulture(filename)
-    print(res)
+    for vulture_output in res:
+        r = transform_vulture_to_vulture(vulture_output)
+        group_line[r["line"]].append(r)
+        group_code[r["code"]].append(r)
 
     res = run_pycodestyle(filename)
-    print(res)
+    for pycodestyle_output in res:
+        r = transform_pycodestyle_to_vulture(pycodestyle_output)
+        group_line[r["line"]].append(r)
+        group_code[r["code"]].append(r)
+
+    print(group_line)
+    print(group_code)
+
+    save_json("data", "group_line.json", group_line)
+    save_json("data", "group_code.json", group_code)
