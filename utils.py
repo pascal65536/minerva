@@ -3,8 +3,7 @@ import subprocess
 import json
 import re
 from collections import defaultdict
-import pprint
-from behoof import save_json
+from behoof import load_json, save_json, calculate_md5
 
 
 transform_dct = {
@@ -99,6 +98,16 @@ def run_pycodestyle(filepath):
     return parse_pycodestyle_text(result.stdout) if result.stdout.strip() else []
 
 
+def run_filestr(filepath):
+    with open(filepath) as f:
+        content = f.readlines()
+
+    result = []
+    for line, raw in enumerate(content):
+        result.append({"line": line + 1, "raw": raw.strip("\n")})
+    return result
+
+
 def transform_flake8_to_vulture(flake8_output):
     local_dct = deepcopy(transform_dct)
     local_dct.update(
@@ -121,7 +130,7 @@ def transform_bandit_to_vulture(bandit_output):
         {
             "code": bandit_output["test_id"],
             "code_name": bandit_output["test_name"],
-            "file": bandit_output["filename"].strip('.'),
+            "file": bandit_output["filename"].strip("."),
             "line": int(bandit_output["line_number"]),
             "column": int(bandit_output["col_offset"]),
             "column_end": int(bandit_output["end_col_offset"]),
@@ -207,47 +216,80 @@ def transform_pycodestyle_to_vulture(pycodestyle_output):
     return local_dct
 
 
-if __name__ == "__main__":
-    filename = "fixtures/script.py"
+def transform_filestr_to_vulture(filestr_output):
+    # local_dct = deepcopy(transform_dct)
+    local_dct = dict()
+    local_dct.update(
+        {
+            "checker": "filestr",
+            "raw": filestr_output["raw"],
+            "line": filestr_output["line"],
+        }
+    )
+    return local_dct
 
+
+def group_line_update_or_create(filename):
+    md5_hash = calculate_md5(filename)
+    group_line_file = f"{md5_hash}.json"
+    group_line = load_json("data", group_line_file)
+    if group_line == {}:
+        group_line = calc_group_line(filename)
+        save_json("data", group_line_file, group_line)
+    return group_line
+
+
+def raw_update_or_create(filename):
+    md5_hash = calculate_md5(filename)
+    raw_file = f"{md5_hash}_raw.json"
+    raw_dct = load_json("data", raw_file)
+    if raw_dct == {}:
+        with open(filename) as f:
+            content = f.readlines()
+        for line, raw in enumerate(content):
+            raw_dct[line + 1] = raw.rstrip("\n")
+        save_json("data", raw_file, raw_dct)
+    return raw_dct
+
+
+def calc_group_line(filename):
     group_line = defaultdict(list)
-    group_code = defaultdict(list)
 
     res = run_flake8(filename)
     for flake8_output in res:
         r = transform_flake8_to_vulture(flake8_output)
         group_line[r["line"]].append(r)
-        group_code[r["code"]].append(r)
 
     res = run_bandit(filename)
     for bandit_output in res:
         r = transform_bandit_to_vulture(bandit_output)
         group_line[r["line"]].append(r)
-        group_code[r["code"]].append(r)
 
     res = run_pylint(filename)
     for pylint_output in res:
         r = transform_pylint_to_vulture(pylint_output)
         group_line[r["line"]].append(r)
-        group_code[r["code"]].append(r)
 
     res = run_mypy(filename)
     for mypy_output in res:
         r = transform_mypy_to_vulture(mypy_output)
         group_line[r["line"]].append(r)
-        group_code[r["code"]].append(r)
 
     res = run_vulture(filename)
     for vulture_output in res:
         r = transform_vulture_to_vulture(vulture_output)
         group_line[r["line"]].append(r)
-        group_code[r["code"]].append(r)
 
     res = run_pycodestyle(filename)
     for pycodestyle_output in res:
         r = transform_pycodestyle_to_vulture(pycodestyle_output)
         group_line[r["line"]].append(r)
-        group_code[r["code"]].append(r)
 
-    save_json("data", "group_line.json", group_line)
-    save_json("data", "group_code.json", group_code)
+    return group_line
+
+
+if __name__ == "__main__":
+    filename = "fixtures/script.py"
+    group_line_update_or_create(filename)
+    ret = raw_update_or_create(filename)
+    print(ret)
