@@ -11,6 +11,7 @@ transform_dct = {
     "code": None,
     "file": None,
     "line": None,
+    "type": None,
     "column": None,
     "message": None,
     "physical": None,
@@ -80,6 +81,8 @@ def run_mypy(filepath):
     result = subprocess.run(task, capture_output=True, text=True)
     res = []
     for row in result.stdout.splitlines():
+        if not row:
+            continue
         res.append(json.loads(row))
     return res
 
@@ -142,7 +145,7 @@ def transform_pylint_to_vulture(pylint_output):
             "checker": "pylint",
             "code": pylint_output["message-id"],
             "code_name": pylint_output["symbol"],
-            "issue_confidence": pylint_output["type"].upper(),
+            "type": pylint_output["type"],
             "file": pylint_output["path"],
             "line": pylint_output["line"],
             "column": pylint_output["column"],
@@ -157,13 +160,13 @@ def transform_pylint_to_vulture(pylint_output):
 def transform_mypy_to_vulture(mypy_output):
     local_dct = deepcopy(transform_dct)
     code_str = mypy_output["code"]
-    code = f"MY{sum(map(ord, code_str))}"    
+    code = f"MY{sum(map(ord, code_str))}"
     local_dct.update(
         {
             "code": code,
             "checker": "mypy",
             "code_name": mypy_output["code"],
-            "issue_confidence": mypy_output["severity"].upper(),
+            "issue_severity": mypy_output["severity"].upper(),
             "file": mypy_output["file"],
             "line": mypy_output["line"],
             "column": mypy_output["column"],
@@ -205,7 +208,7 @@ def transform_pycodestyle_to_vulture(pycodestyle_output):
 
 
 if __name__ == "__main__":
-    filename = "fixtures/script_clean.py"
+    filename = "fixtures/script.py"
 
     group_line = defaultdict(list)
     group_code = defaultdict(list)
@@ -245,9 +248,6 @@ if __name__ == "__main__":
         r = transform_pycodestyle_to_vulture(pycodestyle_output)
         group_line[r["line"]].append(r)
         group_code[r["code"]].append(r)
-
-    print(group_line)
-    print(group_code)
 
     save_json("data", "group_line.json", group_line)
     save_json("data", "group_code.json", group_code)
