@@ -21,14 +21,26 @@ root_dir = "fixtures"
 def index():
     selected_key = request.args.get("key")
     files_lst = scan_python_files(root_dir)
-    for filename, _, key in files_lst:
+    selected_file_info = dict()
+    for display_path, filename, key in files_lst:
         if selected_key != key:
             continue
-        print(filename)
-        print(key)
+        python_dct = raw_update_or_create(display_path)
+        vulture_dct = group_line_update_or_create(display_path)
 
+        selected_file_info = {
+            "filename": filename,
+            "display_path": display_path,
+            "vulture_dct": vulture_dct,
+            "python_dct": python_dct,
+        }
 
-    return render_template("index.html", files_lst=files_lst)
+    return render_template(
+        "index.html",
+        files_lst=files_lst,
+        selected_key=selected_key,
+        selected_file_info=selected_file_info,
+    )
 
 
 @app.route("/refresh-all")

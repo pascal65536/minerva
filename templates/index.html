@@ -9,20 +9,10 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet" />
 
     <style>
-        .layout {
-            display: flex;
-            gap: 2rem;
-            margin-top: 1.5rem;
-        }
-
         .file-list {
             flex: 0 0 300px;
             max-height: 80vh;
             overflow-y: auto;
-        }
-
-        .report-area {
-            flex: 1;
         }
 
         .file-item {
@@ -40,48 +30,60 @@
             border-right: 3px solid #0d6efd;
         }
 
-        .no-issues {
-            color: #6c757d;
-            font-style: italic;
-        }
-
         .path-text {
             font-family: monospace;
             font-size: 0.875em;
             color: #6c757d;
         }
 
-        .issue-item {
-            border-left: 5px solid;
-            padding: 1rem;
-            background: #fff;
-            margin-bottom: 1rem;
-            box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
-        }
-
         pre {
             white-space: pre-wrap;
-            /* чтобы текст переносился */
             font-family: "Courier New", Courier, monospace;
         }
-        .show-code td {
-            padding: 0px;
-            margin: 0px;
 
+        .show-code td {
+            padding: 0;
+            margin: 0;
         }
+
         .show-code .language-python {
-            margin: 0px;
-            padding: 0px;
+            margin: 0;
+            padding: 0;
         }
-        .show-code pre, 
-        .show-code code 
-        {
+
+        .show-code pre,
+        .show-code code {
             white-space: break-spaces;
         }
-        
-        .issue-details {
-            padding: 10px;
-            margin: 5px;
+
+        .triangle-btn {
+            background: none;
+            border: none;
+            font-size: 1.25rem;
+            line-height: 1;
+            color: #0d6efd;
+            transition: transform 0.2s ease;
+        }
+
+        .triangle-btn:not(.collapsed) {
+            transform: rotate(90deg);
+        }
+
+        .triangle-btn::after {
+            content: "▶";
+        }
+
+        .triangle-btn:not(.collapsed)::after {
+            content: "▼";
+        }
+
+        .details-row {
+            background-color: #f8f9fa;
+        }
+
+        .details-row .card {
+            border: none;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
         }
     </style>
 
@@ -118,7 +120,8 @@
                         </div>
                         <div class="card-body">
                             <form method="POST">
-                                <label for="project_path" class="form-label">Полный путь к папке с Python-файлами</label>
+                                <label for="project_path" class="form-label">Полный путь к папке с
+                                    Python-файлами</label>
                                 <div class="input-group">
                                     <input type="text" class="form-control" name="project_path" id="project_path"
                                         placeholder="/home/user/myproject" required>
@@ -126,18 +129,20 @@
                                 </div>
                             </form>
                         </div>
-                    </div>    
-                                        
+                    </div>
+
                     <div class="file-list card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             📄 Файлы проекта
-                            <a href="{{ url_for('refresh_all') }}" class="btn btn-sm btn-outline-secondary">Обновить все</a>
+                            <a href="{{ url_for('refresh_all') }}" class="btn btn-sm btn-outline-secondary">Обновить
+                                все</a>
                         </div>
                         <ul class="list-group list-group-flush">
                             {% if files_lst and files_lst|length > 0 %}
                             {% for info, file, key in files_lst %}
                             <li class="list-group-item p-0">
-                                <a href="{{ url_for('index', key=key) }}" class="file-item w-100 d-block text-decoration-none text-dark {% if key == selected_key %}active{% endif %}">
+                                <a href="{{ url_for('index', key=key) }}"
+                                    class="file-item w-100 d-block text-decoration-none text-dark {% if key == selected_key %}active{% endif %}">
                                     <div>{{ file }}</div>
                                     <div class="path-text">{{ info }}</div>
                                 </a>
@@ -152,11 +157,12 @@
                 <div class="col-md-9">
                     {% if selected_key and selected_file_info %}
                     <div class="card">
-                        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <div
+                            class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                             📊 Отчет: <strong>{{ selected_file_info.filename }}</strong>
                             <div>
                                 <span class="badge bg-secondary me-2">{{ selected_file_info.display_path }}</span>
-                                <a href="" class="btn btn-sm btn-warning">Обновить</a>
+                                <a href="{{ url_for('index', key=selected_key) }}" class="btn btn-sm btn-warning">Обновить</a>
                             </div>
                         </div>
 
@@ -167,57 +173,48 @@
                                         <tr>
                                             <th class="text-center col-1">№</th>
                                             <th class="text-center col-1">Check</th>
-                                            <th class="text-center col-10">Python код</th>
+                                            <th class="text-center col-10">Python-код</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for row in table_data %}
-                                        <tr class="{{ row.table }}">
-                                            <td class="text-center">      
-                                                {{ row.line }}
-                                            </td>                                            
-                                            <td class="text-center">
-                                                {% if row.bandit %}
-                                                <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#layer{{ row.line }}bandit" aria-expanded="false" aria-controls="layer{{ row.line }}bandit">B</button>
-                                                {% endif %}
-                                                {% if row.pylint %}
-                                                <button class="btn btn-warning btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#layer{{ row.line }}pylint" aria-expanded="false" aria-controls="layer{{ row.line }}pylint">P</button>
-                                                {% endif %}
-                                                {% if row.flake8 %}
-                                                <button class="btn btn-success btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#layer{{ row.line }}flake8" aria-expanded="false" aria-controls="layer{{ row.line }}flake8">F</button>
+                                        {% for key, python_code in selected_file_info.python_dct.items() %}
+                                        <tr>
+                                            <td class="text-center align-middle">{{ key }}</td>
+                                            <td class="text-center align-middle">
+                                                {% if selected_file_info.vulture_dct[key] %}
+                                                <button class="triangle-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#details-{{ key }}" aria-expanded="false" aria-controls="details-{{ key }}"></button>
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <pre><code class="language-python">{{ row.filestr }}</code></pre>
-                                                
-                                                {% if row.bandit %}
-                                                <div id="layer{{ row.line }}bandit" class="collapse" data-bs-parent="#accordion">
-                                                    <div class="issue-details">
-                                                        <p><b>{{ row.bandit.test_id }}: <a href="">{{ row.bandit.test_name }}</a></b></p>
-                                                        <p><b><a href="">{{ row.bandit.issue_cwe.id }}</a> {{ row.bandit.issue_severity }} /  {{ row.bandit.issue_confidence }}</b></p>
-                                                        <p>{{ row.bandit.issue_text }}</p>
-                                                    </div>
-                                                </div>    
-                                                {% endif %}       
+                                                <pre><code class="language-python">{{ python_code }}</code></pre>
+                                            </td>
+                                        </tr>
 
-                                                {% if row.pylint %}
-                                                <div id="layer{{ row.line }}pylint" class="collapse" data-bs-parent="#accordion">
-                                                    <div class="issue-details">
-                                                        <h5>Pylint</h5>
-                                                        <p><b>{{ row.pylint.message_id }}: {{ row.pylint.message }}</b></p>
+                                        <tr class="collapse" id="details-{{ key }}">
+                                            <td colspan="3" class="p-0">
+                                                <div class="p-3">
+                                                    <div class="card">
+                                                        <div class="card-body py-2">
+                                                            <h6 class="card-title text-muted mb-2 small">🔍 Строка #{{ key }}</h6>
+                                                            {% for vulture in selected_file_info.vulture_dct[key] %}
+                                                            <div class="issue-details">
+                                                                <p class="mb-1"><strong>Тип:</strong> <span class="badge bg-{{ vulture.color }}-subtle text-{{ vulture.color }}-emphasis">{{ vulture.code }}</span></p>
+
+                                                                {% for key, value in vulture.items() %}
+                                                                {% if key not in ['type', 'color', 'line', 'checker', 'file', 'code', 'physical', 'column', 'column_end'] %}
+                                                                {% if value %}
+                                                                <p class="mb-1"><strong>{{key}}:</strong> {{ value }}</p>
+                                                                {% endif %}
+                                                                {% endif %}
+                                                                {% endfor %}
+
+                                                                <p class="mb-0"><strong>Источник:</strong> По версии {{ vulture.checker }}.</p>
+                                                            </div>
+                                                            {% endfor %}
+                                                        </div>
                                                     </div>
-                                                </div>                                            
-                                                {% endif %}       
-                                                                             
-                                                {% if row.flake8 %}
-                                                <div id="layer{{ row.line }}flake8" class="collapse" data-bs-parent="#accordion">
-                                                    <div class="issue-details">
-                                                        <h5>Flake8</h5>
-                                                        <p><b>{{ row.flake8.code }}: {{ row.flake8.text }}</b></p>
-                                                    </div>
-                                                </div>     
-                                                {% endif %}
-                                            </td>                                                                           
+                                                </div>
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -234,7 +231,13 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
-
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof Prism !== 'undefined') {
+                Prism.highlightAll();
+            }
+        });
+    </script>
 </body>
 
 </html>
