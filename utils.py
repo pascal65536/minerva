@@ -1,3 +1,4 @@
+import os
 from copy import deepcopy
 import subprocess
 import json
@@ -5,23 +6,10 @@ import re
 from collections import defaultdict
 from behoof import load_json, save_json, calculate_md5
 
-
-transform_dct = {
-    "code": None,
-    "file": None,
-    "line": None,
-    "type": None,
-    "column": None,
-    "message": None,
-    "physical": None,
-    "checker": None,
-    "code_name": None,
-    "column_end": None,
-    "issue_confidence": None,
-    "issue_cwe_id": None,
-    "issue_cwe_link": None,
-    "issue_severity": None,
-}
+settings_dct = load_json("settings", "app.json")
+data_dir = settings_dct.get("data_dir", "data")
+exclude_dirs = settings_dct.get("exclude_dirs", [])
+transform_dct = settings_dct.get("transform_dct", {})
 
 
 def parse_vulture_text(output):
@@ -232,23 +220,23 @@ def transform_filestr_to_vulture(filestr_output):
 def group_line_update_or_create(filename):
     md5_hash = calculate_md5(filename)
     group_line_file = f"{md5_hash}.json"
-    group_line = load_json("data", group_line_file)
+    group_line = load_json(data_dir, group_line_file)
     if group_line == {}:
         group_line = calc_group_line(filename)
-        save_json("data", group_line_file, group_line)
+        save_json(data_dir, group_line_file, group_line)
     return group_line
 
 
 def raw_update_or_create(filename):
     md5_hash = calculate_md5(filename)
     raw_file = f"{md5_hash}_raw.json"
-    raw_dct = load_json("data", raw_file)
+    raw_dct = load_json(data_dir, raw_file)
     if raw_dct == {}:
         with open(filename) as f:
             content = f.readlines()
         for line, raw in enumerate(content):
             raw_dct[line + 1] = raw.rstrip("\n")
-        save_json("data", raw_file, raw_dct)
+        save_json(data_dir, raw_file, raw_dct)
     return raw_dct
 
 
@@ -288,8 +276,30 @@ def calc_group_line(filename):
     return group_line
 
 
+def scan_python_files(root_dir):
+    py_files = []
+    if not os.path.exists(root_dir):
+        return py_files
+
+    for dirpath, dirnames, filenames in os.walk(root_dir):
+        dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
+        for f in filenames:
+            if not f.endswith(".py"):
+                continue
+            full_path = os.path.join(dirpath, f)
+            py_files.append((full_path, f, calculate_md5(full_path)))
+    return sorted(py_files)
+
+
+def erase_data():
+    for file in os.listdir(data_dir):
+        if not file.endswith(".json"):
+            continue
+        os.remove(os.path.join(data_dir, file))
+
+
 if __name__ == "__main__":
-    filename = "fixtures/script.py"
-    group_line_update_or_create(filename)
-    ret = raw_update_or_create(filename)
-    print(ret)
+    for filename in scan_python_files("fixtures"):
+        group_line_update_or_create(filename)
+        raw_update_or_create(filename)
+        print(filename)
