@@ -1,7 +1,0 @@
-[flake8]
-max-line-length = 120
-exclude = .git,__pycache__,venv,build,dist
-min-var-length = 2
-max-var-length = 40
-allowed-single-letters = i,j
-enforce-snake-case = True

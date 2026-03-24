@@ -1,13 +1,17 @@
-class Test:
+class siTest:
     pass
 
 
-x = 1
+l = 1
 
-++x
+++l
 
-hasattr(x, '__call__')
+hasattr(l, '__call__')
 
 __a1__ = 1
 _b2_ = 2
 cCc = __a1__ + _b2_
+
+w = cCc ** 2
+
+

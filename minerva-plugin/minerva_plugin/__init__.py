@@ -1,6 +1,35 @@
-import ast
 import re
-from typing import Iterator, Tuple, List, Any
+import os
+import ast
+import json
+
+
+def load_json(folder_name_lst, file_name, default={}):
+    if isinstance(folder_name_lst, str):
+        folder_name = folder_name_lst
+    elif isinstance(folder_name_lst, list):
+        folder_name = os.path.join(*folder_name_lst)
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+    filename = os.path.join(folder_name, file_name)
+    if not os.path.exists(filename):
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(default, f, ensure_ascii=True)
+    with open(filename, encoding="utf-8") as f:
+        load_dct = json.load(f)
+    return load_dct
+
+
+def save_json(folder_name_lst, file_name, save_dct):
+    if isinstance(folder_name_lst, str):
+        folder_name = folder_name_lst
+    elif isinstance(folder_name_lst, list):
+        folder_name = os.path.join(*folder_name_lst)
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+    filename = os.path.join(folder_name, file_name)
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(save_dct, f, ensure_ascii=False, indent=4)
 
 
 class Minerva:
@@ -11,12 +40,8 @@ class Minerva:
 
     name = "minerva"
     version = "1.0.0"
-
-    # Опции по умолчанию
-    min_length = 2
-    max_length = 40
-    allowed_single_letters = "i,j,x,y,e"
-    enforce_snake_case = True
+    directory = 'settings'
+    filename = 'settings.json'
 
     def __init__(self, tree: ast.AST, filename: str):
         self.tree = tree
@@ -24,12 +49,14 @@ class Minerva:
 
     @classmethod
     def add_options(cls, parser):
-        """Регистрация настроек в flake8 для чтения из конфига."""
+        """
+        Регистрация настроек в flake8 для чтения из конфига
+        """
         parser.add_option(
             "--min-var-length",
             action="store",
             type=int,
-            default=cls.min_length,
+            default=cls.load_settings()['min_length'],
             parse_from_config=True,
             help="Минимальная длина имени переменной (по умолчанию: 2)",
         )
@@ -37,7 +64,7 @@ class Minerva:
             "--max-var-length",
             action="store",
             type=int,
-            default=cls.max_length,
+            default=cls.load_settings()['max_length'],
             parse_from_config=True,
             help="Максимальная длина имени переменной (по умолчанию: 40)",
         )
@@ -45,14 +72,14 @@ class Minerva:
             "--allowed-single-letters",
             action="store",
             type=str,
-            default=cls.allowed_single_letters,
+            default=cls.load_settings()['allowed_single_letters'],
             parse_from_config=True,
             help="Разрешенные однобуквенные имена через запятую (по умолчанию: i,j,x,y,e)",
         )
         parser.add_option(
             "--enforce-snake-case",
             action="store_true",
-            default=cls.enforce_snake_case,
+            default=cls.load_settings()['enforce_snake_case'],
             parse_from_config=True,
             help="Требовать snake_case для имен переменных",
         )
@@ -73,16 +100,25 @@ class Minerva:
         """
         Генератор нарушений
         """
-        visitor = MinervaVisitor(
-            min_length=self.min_length,
-            max_length=self.max_length,
-            allowed_single_letters=self.allowed_single_letters,
-            enforce_snake_case=self.enforce_snake_case,
-        )
+
+        visitor = MinervaVisitor(**self.load_settings())
         visitor.visit(self.tree)
         for violation in visitor.violations:
             yield violation
-
+    
+    @classmethod
+    def load_settings(cls):
+        """
+        Загрузка настроек из файла
+        """
+        settings = load_json(cls.directory, cls.filename)
+        if settings == {}:
+            settings['min_length'] = 2
+            settings['max_length'] = 40
+            settings['allowed_single_letters'] = "i,j,x,y,e"
+            settings['enforce_snake_case'] = True
+            save_json(cls.directory, cls.filename, settings)
+        return settings
 
 class MinervaVisitor(ast.NodeVisitor):
     """
@@ -117,7 +153,7 @@ class MinervaVisitor(ast.NodeVisitor):
                 msg = f"MN001 variable name too short (min {self.min_length} chars)"
                 candidate = (lineno, col_offset, msg, Minerva)
                 if candidate not in self.violations:
-                    self.violations.append(candidate)                
+                    self.violations.append(candidate)
                 return
 
         # Проверка максимальной длины
@@ -184,3 +220,4 @@ class MinervaVisitor(ast.NodeVisitor):
         elif isinstance(target, (ast.Tuple, ast.List)):
             for elt in target.elts:
                 self._visit_target(elt)
+
