@@ -1,32 +1,70 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash
-from behoof import load_json, save_json, calculate_md5
+from behoof import load_json
 from utils import (
     group_line_update_or_create,
     raw_update_or_create,
     scan_python_files,
     erase_data,
 )
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField
+from wtforms.validators import DataRequired, ValidationError
+
+settings_dct = load_json("settings", "app.json")
 
 app = Flask(__name__)
 app.secret_key = os.urandom(128)
-settings_dct = load_json("settings", "app.json")
-data_dir = settings_dct.get("data_dir", "data")
-exclude_dirs = settings_dct.get("exclude_dirs", [])
+app.root_dir = settings_dct.get("root_dir", "fixtures")
 
-root_dir = "fixtures"
+
+class ProjectForm(FlaskForm):
+    def validator_project_path(self, field):
+        project_path = field.data
+        if not project_path:
+            raise ValidationError("Путь должен быть указан.")
+        if not os.path.exists(project_path):
+            raise ValidationError("Путь должен реально существовать.")
+        if not os.path.isdir(project_path):
+            raise ValidationError("Путь должен быть директорией.")
+        return
+
+    project_path = StringField(
+        "Полный путь к папке с Python-файлами",
+        validators=[DataRequired(), validator_project_path],
+    )
+    submit = SubmitField("Сканировать")
 
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    import time
+    start = time.time()
+
+    form = ProjectForm()
+    if form.validate_on_submit():
+        app.root_dir = form.project_path.data
+        files_lst = scan_python_files(app.root_dir)
+        msg = f"Проект '{app.root_dir}' загружен. Найдено и проанализировано {len(files_lst)} Python-файлов."
+        flash(msg, "success")
+        return redirect(url_for("index"))
+
+    print(52, time.time() - start)
     selected_key = request.args.get("key")
-    files_lst = scan_python_files(root_dir)
+    files_lst = scan_python_files(app.root_dir)
     selected_file_info = dict()
+
+    print(53, time.time() - start)
     for display_path, filename, key in files_lst:
         if selected_key != key:
             continue
+        print(61, time.time() - start)
+
         python_dct = raw_update_or_create(display_path)
+        print(64, time.time() - start)
+
         vulture_dct = group_line_update_or_create(display_path)
+        print(67, time.time() - start)
 
         selected_file_info = {
             "filename": filename,
@@ -34,9 +72,11 @@ def index():
             "vulture_dct": vulture_dct,
             "python_dct": python_dct,
         }
+        print(75, time.time() - start)
 
     return render_template(
         "index.html",
+        form=form,
         files_lst=files_lst,
         selected_key=selected_key,
         selected_file_info=selected_file_info,
@@ -46,7 +86,7 @@ def index():
 @app.route("/refresh-all")
 def refresh_all():
     erase_data()
-    files_lst = scan_python_files(root_dir)
+    files_lst = scan_python_files(app.root_dir)
     count = 0
     for filename, *_ in files_lst:
         group_line_update_or_create(filename)
@@ -58,14 +98,6 @@ def refresh_all():
 
 @app.route("/refresh/<key>")
 def refresh(key):
-    # files_dct = load_json("data", "files.json", default={})
-    # if key in files_dct:
-    #     filepath = files_dct[key]["filepath"]
-    #     update_reports_for_file(key, filepath)
-    #     msg = f"Отчет для '{files_dct[key]['display_path']}' обновлен."
-    #     flash(msg, "info")
-    # else:
-    #     flash("Файл не найден.", "error")
     return redirect(url_for("index", key=key))
 
 

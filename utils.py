@@ -125,7 +125,6 @@ def transform_bandit_to_vulture(bandit_output):
             "column": int(bandit_output["col_offset"]),
             "column_end": int(bandit_output["end_col_offset"]),
             "message": bandit_output["issue_text"],
-            "message_rus": bandit_output["issue_text"],
             "physical": bandit_output["code"].rstrip(),
             "more_info": bandit_output["more_info"],
             "issue_confidence": bandit_output["issue_confidence"],
