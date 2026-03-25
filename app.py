@@ -1,21 +1,38 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash
-from behoof import load_json
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    flash,
+)
+from flask_wtf import FlaskForm
 from utils import (
     group_line_update_or_create,
     raw_update_or_create,
     scan_python_files,
     erase_data,
 )
-from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired, ValidationError
+from behoof import load_json
+
 
 settings_dct = load_json("settings", "app.json")
 
 app = Flask(__name__)
 app.secret_key = os.urandom(128)
 app.root_dir = settings_dct.get("root_dir", "fixtures")
+
+
+# class SettingsForm(FlaskForm):
+#     checker_code = StringField(validators=[DataRequired()])
+#     submit = SubmitField("Отправить")
+
+#     # Метод для получения данных как JSON (если нужно)
+#     def get_json_data(self):
+#         return {"checker_code": self.checker_code.data}
 
 
 class ProjectForm(FlaskForm):
@@ -46,14 +63,15 @@ def index():
         flash(msg, "success")
         return redirect(url_for("index"))
 
-    selected_key = request.args.get("key")
     files_lst = scan_python_files(app.root_dir)
-    selected_file_info = dict()
+    selected_key = request.args.get("key")
+    if not len(files_lst):
+        *_, selected_key = files_lst[0]
 
+    selected_file_info = dict()
     for display_path, filename, key in files_lst:
         if selected_key != key:
             continue
-
         python_dct = raw_update_or_create(display_path)
         vulture_dct = group_line_update_or_create(display_path)
         selected_file_info = {
@@ -90,6 +108,17 @@ def refresh(key):
     erase_data(key)
     flash(f"Отчет о файле обновлен", "info")
     return redirect(url_for("index", key=key))
+
+
+# @app.route("/settings", methods=["POST"])
+# def settings():
+#     form = SettingsForm()
+#     print(form.data)
+#     if form.validate_on_submit():
+#         settings_dct = form.get_json_data()
+#         print(settings_dct)
+#         flash("Настройки сохранены", "success")
+#     return redirect(url_for("index"))
 
 
 if __name__ == "__main__":

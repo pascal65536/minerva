@@ -11,6 +11,8 @@ data_dir = settings_dct.get("data_dir", "data")
 exclude_dirs = settings_dct.get("exclude_dirs", [])
 transform_dct = settings_dct.get("transform_dct", {})
 
+os.makedirs(data_dir, exist_ok=True)
+
 
 def parse_vulture_text(output):
     results = []
@@ -257,7 +259,6 @@ def transform_pycodestyle_to_vulture(pycodestyle_output):
 
 
 def transform_filestr_to_vulture(filestr_output):
-    # local_dct = deepcopy(transform_dct)
     local_dct = dict()
     local_dct.update(
         {
@@ -354,8 +355,40 @@ def erase_data(key=None):
             os.remove(os.path.join(data_dir, file))
 
 
+def get_checker_code(filename):
+    accumulator = set()
+    checker_code_dct = load_json("settings", "checker_code.json", default=[])
+    ret = group_line_update_or_create(filename)
+    for _, checks in ret.items():
+        for test in checks:
+            key = test["checker"], test["code"]
+            if key in accumulator:
+                continue
+            accumulator.add(key)
+
+            test.pop("file")
+            test.pop("line")
+            test.pop("column")
+            test.pop("column_end")
+            test.pop("physical")
+            test.pop("issue_confidence")
+            test.pop("issue_cwe_id")
+            test.pop("issue_cwe_link")
+            test.pop("issue_severity")
+            test.pop("message")
+            if "more_info" in test:
+                test.pop("more_info")
+            checker_code_dct.append(test)
+    save_json("settings", "checker_code.json", checker_code_dct)
+    return checker_code_dct
+
+
 if __name__ == "__main__":
-    for filename in scan_python_files("fixtures"):
-        group_line_update_or_create(filename)
-        raw_update_or_create(filename)
-        print(filename)
+    run_flake8("/home/pascal65536/git/stand/stand.py")
+    # import pprint
+
+    # type_code_dct = dict()
+    # for filename, demo, hash in scan_python_files("/home/pascal65536/git/stand"):
+    #     print(filename)
+    #     pprint.pprint(get_checker_code(filename))
+    #     print()

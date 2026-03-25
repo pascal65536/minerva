@@ -1,10 +1,12 @@
+import ast
 import re
 import os
-import ast
 import json
 
 
-def load_json(folder_name_lst, file_name, default={}):
+def load_json(folder_name_lst, file_name, default=None):
+    if default is None:
+        default = {}
     if isinstance(folder_name_lst, str):
         folder_name = folder_name_lst
     elif isinstance(folder_name_lst, list):
@@ -35,11 +37,10 @@ def save_json(folder_name_lst, file_name, save_dct):
 class Minerva:
     """
     Основной класс плагина Minerva.
-    Отвечает за инициализацию и передачу настроек в визитор.
     """
 
     name = "minerva"
-    version = "1.0.0"
+    version = "1.3.0"
     directory = "settings"
     filename = "plugin.json"
 
@@ -50,38 +51,48 @@ class Minerva:
     @classmethod
     def add_options(cls, parser):
         """
-        Регистрация настроек в flake8 для чтения из конфига
+        Регистрация настроек в flake8
         """
+        settings = cls.load_settings()
+
         parser.add_option(
             "--min-var-length",
             action="store",
             type=int,
-            default=cls.load_settings()["min_length"],
+            default=settings.get("min_length", 2),
             parse_from_config=True,
-            help="Минимальная длина имени переменной (по умолчанию: 2)",
+            help="Минимальная длина имени переменной",
         )
         parser.add_option(
             "--max-var-length",
             action="store",
             type=int,
-            default=cls.load_settings()["max_length"],
+            default=settings.get("max_length", 40),
             parse_from_config=True,
-            help="Максимальная длина имени переменной (по умолчанию: 40)",
+            help="Максимальная длина имени переменной",
         )
         parser.add_option(
             "--allowed-single-letters",
             action="store",
             type=str,
-            default=cls.load_settings()["allowed_single_letters"],
+            default=settings.get("allowed_single_letters", "i,j,x,y,e"),
             parse_from_config=True,
-            help="Разрешенные однобуквенные имена через запятую (по умолчанию: i,j,x,y,e)",
+            help="Разрешенные однобуквенные имена через запятую",
         )
         parser.add_option(
             "--enforce-snake-case",
             action="store_true",
-            default=cls.load_settings()["enforce_snake_case"],
+            default=settings.get("enforce_snake_case", True),
             parse_from_config=True,
             help="Требовать snake_case для имен переменных",
+        )
+        parser.add_option(
+            "--prohibited-modules",
+            action="store",
+            type=str,
+            default=settings.get("prohibited_modules", "math,re"),
+            parse_from_config=True,
+            help="Запрещенные модули для импорта через запятую",
         )
 
     @classmethod
@@ -95,13 +106,16 @@ class Minerva:
             letter.strip() for letter in options.allowed_single_letters.split(",")
         )
         cls.enforce_snake_case = options.enforce_snake_case
+        cls.prohibited_modules = set(
+            mod.strip() for mod in options.prohibited_modules.split(",") if mod.strip()
+        )
 
     def run(self):
         """
         Генератор нарушений
         """
-
-        visitor = MinervaVisitor(**self.load_settings())
+        settings = self.load_settings()
+        visitor = MinervaVisitor(**settings)
         visitor.visit(self.tree)
         for violation in visitor.violations:
             yield violation
@@ -117,13 +131,14 @@ class Minerva:
             settings["max_length"] = 40
             settings["allowed_single_letters"] = "i,j,x,y,e"
             settings["enforce_snake_case"] = True
+            settings["prohibited_modules"] = "math,re"
             save_json(cls.directory, cls.filename, settings)
         return settings
 
 
 class MinervaVisitor(ast.NodeVisitor):
     """
-    Визитор AST дерева для проверки имен
+    Визитор AST дерева для проверки имен и импортов
     """
 
     def __init__(
@@ -132,23 +147,35 @@ class MinervaVisitor(ast.NodeVisitor):
         max_length,
         allowed_single_letters,
         enforce_snake_case,
+        prohibited_modules,
     ):
         self.violations = list()
         self.min_length = min_length
         self.max_length = max_length
-        self.allowed_single_letters = allowed_single_letters
+        
+        self.allowed_single_letters = (
+            set(letter.strip() for letter in allowed_single_letters.split(","))
+            if isinstance(allowed_single_letters, str)
+            else allowed_single_letters
+        )
+
         self.enforce_snake_case = enforce_snake_case
+        
+        self.prohibited_modules = (
+            set(mod.strip() for mod in prohibited_modules.split(",") if mod.strip())
+            if isinstance(prohibited_modules, str)
+            else prohibited_modules
+        )
+
         self.snake_case_pattern = re.compile(r"^_?[a-z][a-z0-9_]*$")
 
     def _check_name(self, name, lineno, col_offset):
         if not name:
             return
 
-        # Пропускаем имена, начинающиеся с __ (магические методы/атрибуты)
         if name.startswith("__") and name.endswith("__"):
             return
 
-        # Проверка минимальной длины
         if len(name) < self.min_length:
             if name not in self.allowed_single_letters:
                 msg = f"MN001 variable name too short (min {self.min_length} chars)"
@@ -157,7 +184,6 @@ class MinervaVisitor(ast.NodeVisitor):
                     self.violations.append(candidate)
                 return
 
-        # Проверка максимальной длины
         if len(name) > self.max_length:
             msg = f"MN002 variable name too long (max {self.max_length} chars)"
             candidate = (lineno, col_offset, msg, Minerva)
@@ -165,17 +191,40 @@ class MinervaVisitor(ast.NodeVisitor):
                 self.violations.append(candidate)
             return
 
-        # Пропускаем константы (UPPER_CASE)
         if name.isupper():
             return
 
-        # Проверка стиля именования
         if self.enforce_snake_case:
             if not self.snake_case_pattern.match(name):
                 msg = "MN003 variable name must be in snake_case"
                 candidate = (lineno, col_offset, msg, Minerva)
                 if candidate not in self.violations:
                     self.violations.append(candidate)
+
+    def _check_import(self, module_name, lineno, col_offset):
+        """
+        Проверка модуля на наличие в списке ЗАПРЕЩЕННЫХ (Black List)
+        """
+        if not self.prohibited_modules:
+            return
+
+        base_module = module_name.split(".")[0]
+
+        if base_module in self.prohibited_modules:
+            msg = f"MN004 import of '{base_module}' is prohibited"
+            candidate = (lineno, col_offset, msg, Minerva)
+            if candidate not in self.violations:
+                self.violations.append(candidate)
+
+    def visit_Import(self, node: ast.Import):
+        for alias in node.names:
+            self._check_import(alias.name, node.lineno, node.col_offset)
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom):
+        if node.module:
+            self._check_import(node.module, node.lineno, node.col_offset)
+        self.generic_visit(node)
 
     def visit_Name(self, node: ast.Name):
         if isinstance(node.ctx, ast.Store):

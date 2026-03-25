@@ -60,6 +60,8 @@
         <div class="col-md-9">
             {% if selected_key and selected_file_info %}
             {% include 'content.html' %}
+            {% else %}
+            <p>Не выбран файл</p>
             {% endif %}
         </div>
     </div>

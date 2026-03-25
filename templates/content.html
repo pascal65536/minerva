@@ -39,7 +39,7 @@
                                     <div class="card-body py-2">
                                         <h6 class="card-title text-muted mb-2 small">🔍 Строка #{{ key }}</h6>
                                         {% for vulture in selected_file_info.vulture_dct[key] %}
-                                        <div class="issue-details">
+                                        <div class="issue-details p-2">
                                             <p class="mb-1"><strong>Тип:</strong> <span class="badge bg-{{ vulture.color }}-subtle text-{{ vulture.color }}-emphasis">{{ vulture.code }}</span></p>
 
                                             {% if vulture.issue_cwe_link and vulture.issue_cwe_id %}
