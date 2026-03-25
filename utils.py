@@ -114,8 +114,13 @@ def transform_flake8_to_vulture(flake8_output):
 
 def transform_bandit_to_vulture(bandit_output):
     local_dct = deepcopy(transform_dct)
-    color_dct = {'HIGH': 'danger', 'CRITICAL': 'warning', 'MEDIUM': 'primary', 'LOW': 'success'}
-    color = color_dct.get(bandit_output["issue_severity"], 'dark')    
+    color_dct = {
+        "HIGH": "danger",
+        "CRITICAL": "warning",
+        "MEDIUM": "primary",
+        "LOW": "success",
+    }
+    color = color_dct.get(bandit_output["issue_severity"], "dark")
     local_dct.update(
         {
             "code": bandit_output["test_id"],
@@ -140,7 +145,7 @@ def transform_bandit_to_vulture(bandit_output):
 
 def transform_pylint_to_vulture(pylint_output):
     local_dct = deepcopy(transform_dct)
-    symbol_txt = '''
+    symbol_txt = """
         broad-exception-caught
         consider-using-with
         error
@@ -165,16 +170,20 @@ def transform_pylint_to_vulture(pylint_output):
         unused-wildcard-import
         wildcard-import
         wrong-import-order
-        '''
+        """
 
-    if "type" not in pylint_output and 'symbol' in pylint_output:
-        if pylint_output['symbol'] in ['possibly-used-before-assignment']:
-            pylint_output["type"] = 'error'
-        elif pylint_output['symbol'] in ['unused-import', 'invalid-name', 'missing-module-docstring']:
-            pylint_output["type"] = 'convention'            
-            
-    color_dct = {'warning': 'warning', 'error': 'primary', 'convention': 'success'}
-    color = color_dct.get(pylint_output["type"], 'dark')
+    if "type" not in pylint_output and "symbol" in pylint_output:
+        if pylint_output["symbol"] in ["possibly-used-before-assignment"]:
+            pylint_output["type"] = "error"
+        elif pylint_output["symbol"] in [
+            "unused-import",
+            "invalid-name",
+            "missing-module-docstring",
+        ]:
+            pylint_output["type"] = "convention"
+
+    color_dct = {"warning": "warning", "error": "primary", "convention": "success"}
+    color = color_dct.get(pylint_output["type"], "dark")
     local_dct.update(
         {
             "checker": "pylint",
@@ -197,8 +206,8 @@ def transform_mypy_to_vulture(mypy_output):
     local_dct = deepcopy(transform_dct)
     code_str = mypy_output["code"]
     code = f"MY{sum(map(ord, code_str))}"
-    color_dct = {'ERROR': 'danger'}
-    color = color_dct.get(mypy_output["severity"], 'dark')
+    color_dct = {"ERROR": "danger"}
+    color = color_dct.get(mypy_output["severity"], "dark")
     local_dct.update(
         {
             "code": code,

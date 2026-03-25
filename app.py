@@ -38,9 +38,6 @@ class ProjectForm(FlaskForm):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    import time
-    start = time.time()
-
     form = ProjectForm()
     if form.validate_on_submit():
         app.root_dir = form.project_path.data
@@ -49,30 +46,22 @@ def index():
         flash(msg, "success")
         return redirect(url_for("index"))
 
-    print(52, time.time() - start)
     selected_key = request.args.get("key")
     files_lst = scan_python_files(app.root_dir)
     selected_file_info = dict()
 
-    print(53, time.time() - start)
     for display_path, filename, key in files_lst:
         if selected_key != key:
             continue
-        print(61, time.time() - start)
-
+        
         python_dct = raw_update_or_create(display_path)
-        print(64, time.time() - start)
-
         vulture_dct = group_line_update_or_create(display_path)
-        print(67, time.time() - start)
-
         selected_file_info = {
             "filename": filename,
             "display_path": display_path,
             "vulture_dct": vulture_dct,
             "python_dct": python_dct,
         }
-        print(75, time.time() - start)
 
     return render_template(
         "index.html",
