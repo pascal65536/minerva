@@ -53,7 +53,7 @@ def index():
     for display_path, filename, key in files_lst:
         if selected_key != key:
             continue
-        
+
         python_dct = raw_update_or_create(display_path)
         vulture_dct = group_line_update_or_create(display_path)
         selected_file_info = {
@@ -87,6 +87,8 @@ def refresh_all():
 
 @app.route("/refresh/<key>")
 def refresh(key):
+    erase_data(key)
+    flash(f"Отчет о файле обновлен", "info")
     return redirect(url_for("index", key=key))
 
 

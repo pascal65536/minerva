@@ -1,0 +1,34 @@
+
+    <!-- === Кнопка "Настройка" (фиксирована в правом верхнем углу) === -->
+    <button class="btn btn-outline-secondary position-fixed top-0 end-0 m-3 z-3" 
+            type="button" 
+            data-bs-toggle="offcanvas" 
+            data-bs-target="#settingsOffcanvas" 
+            aria-controls="settingsOffcanvas"
+            title="Настройки">
+        ⚙️ Настройка
+    </button>
+
+    <!-- === Offcanvas панель настроек === -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="settingsOffcanvas" aria-labelledby="settingsLabel">
+        <div class="offcanvas-header bg-primary text-white">
+            <h5 class="offcanvas-title" id="settingsLabel">⚙️ Настройки</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Закрыть"></button>
+        </div>
+        <div class="offcanvas-body">
+            <form id="settingsForm">
+                
+                <!-- Тема оформления -->
+                <div class="mb-4">
+                    <label class="form-label">🎨 Тема</label>
+                    <select class="form-select" id="themeSelect">
+                        <option value="light" selected>Светлая</option>
+                        <option value="dark">Тёмная</option>
+                        <option value="auto">Авто (системная)</option>
+                    </select>
+                    <div class="form-text">Выберите цветовую схему интерфейса</div>
+                </div>
+
+            </form>
+        </div>
+    </div>

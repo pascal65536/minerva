@@ -175,14 +175,15 @@ def transform_pylint_to_vulture(pylint_output):
     if "type" not in pylint_output and "symbol" in pylint_output:
         if pylint_output["symbol"] in ["possibly-used-before-assignment"]:
             pylint_output["type"] = "error"
-        elif pylint_output["symbol"] in [
-            "unused-import",
-            "invalid-name",
-            "missing-module-docstring",
-        ]:
+        elif pylint_output["symbol"] in ["invalid-name", "missing-module-docstring"]:
             pylint_output["type"] = "convention"
-
-    color_dct = {"warning": "warning", "error": "primary", "convention": "success"}
+        elif pylint_output["symbol"] in ["unused-import"]:
+            pylint_output["type"] = "warning"
+    color_dct = {
+        "warning": "info",
+        "error": "primary",
+        "convention": "success",
+    }
     color = color_dct.get(pylint_output["type"], "dark")
     local_dct.update(
         {
@@ -342,11 +343,15 @@ def scan_python_files(root_dir):
     return sorted(py_files)
 
 
-def erase_data():
+def erase_data(key=None):
     for file in os.listdir(data_dir):
         if not file.endswith(".json"):
             continue
-        os.remove(os.path.join(data_dir, file))
+        if key:
+            if file.startswith(key):
+                os.remove(os.path.join(data_dir, file))
+        else:
+            os.remove(os.path.join(data_dir, file))
 
 
 if __name__ == "__main__":

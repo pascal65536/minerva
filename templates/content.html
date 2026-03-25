@@ -4,7 +4,7 @@
         📊 Отчет: <strong>{{ selected_file_info.filename }}</strong>
         <div>
             <span class="badge bg-secondary me-2">{{ selected_file_info.display_path }}</span>
-            <a href="{{ url_for('index', key=selected_key) }}" class="btn btn-sm btn-warning">Обновить</a>
+            <a href="{{ url_for('refresh', key=selected_key) }}" class="btn btn-sm btn-warning">Обновить</a>
         </div>
     </div>
 
@@ -24,7 +24,7 @@
                         <td class="text-center align-middle">{{ key }}</td>
                         <td class="text-center align-middle">
                             {% if selected_file_info.vulture_dct[key] %}
-                            <button class="triangle-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#details-{{ key }}" aria-expanded="false" aria-controls="details-{{ key }}"></button>
+                            {{ selected_file_info.vulture_dct[key]|count }} <button class="triangle-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#details-{{ key }}" aria-expanded="false" aria-controls="details-{{ key }}"></button>
                             {% endif %}
                         </td>
                         <td>
