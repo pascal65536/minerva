@@ -210,7 +210,7 @@ def transform_mypy_to_vulture(mypy_output):
     code_str = mypy_output["code"]
     code = f"MY{sum(map(ord, code_str))}"
     color_dct = {"ERROR": "danger"}
-    color = color_dct.get(mypy_output["severity"], "dark")
+    color = color_dct.get(mypy_output["severity"].upper(), "dark")
     local_dct.update(
         {
             "code": code,
