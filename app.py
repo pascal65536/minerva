@@ -12,7 +12,7 @@ from utils import (
     group_line_update_or_create,
     raw_update_or_create,
     scan_python_files,
-    erase_data,
+    erase_data, get_key_checker_code, get_teacher_lst
 )
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired, ValidationError
@@ -68,16 +68,26 @@ def index():
     if not len(files_lst):
         *_, selected_key = files_lst[0]
 
+    teacher_lst = get_teacher_lst()
     selected_file_info = dict()
     for display_path, filename, key in files_lst:
         if selected_key != key:
             continue
         python_dct = raw_update_or_create(display_path)
         vulture_dct = group_line_update_or_create(display_path)
+        vulture_clean_dct = dict()
+        for key_vulniture, checks in vulture_dct.items():
+            vulture_clean_dct.setdefault(key_vulniture, [])
+            for checker_code in checks:
+                key = get_key_checker_code(checker_code)
+                if key in teacher_lst:
+                    continue
+                vulture_clean_dct[key_vulniture].append(checker_code)
+
         selected_file_info = {
             "filename": filename,
             "display_path": display_path,
-            "vulture_dct": vulture_dct,
+            "vulture_dct": vulture_clean_dct,
             "python_dct": python_dct,
         }
 

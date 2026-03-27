@@ -38,6 +38,7 @@
                                 <div class="card">
                                     <div class="card-body py-2">
                                         <h6 class="card-title text-muted mb-2 small">🔍 Строка #{{ key }}</h6>
+                                        <form method="POST" action="/checker-rules"></form>
                                         {% for vulture in selected_file_info.vulture_dct[key] %}
                                         <div class="issue-details p-2">
                                             <p class="mb-1"><strong>Тип:</strong> <span class="badge bg-{{ vulture.color }}-subtle text-{{ vulture.color }}-emphasis">{{ vulture.code }}</span></p>
@@ -60,7 +61,21 @@
 
                                             <p class="mb-0"><strong>Источник:</strong> По версии {{ vulture.checker }}.</p>
                                         </div>
+
+                                        <div class="form-check ms-3">
+                                            <input class="form-check-input" type="checkbox" name="issues" value="E305_vulture_29" id="issue2">
+                                            <label class="form-check-label" for="issue2">
+                                                <small>Выбрать</small>
+                                            </label>
+                                        </div>                                        
                                         {% endfor %}
+                                        <!-- Кнопка для всех выбранных -->
+                                        <div class="mt-3 text-end">
+                                            <button type="submit" name="action" value="ignore_selected" class="btn btn-danger">
+                                                Сгруппировать выбранные
+                                            </button>
+                                        </div>                                        
+                                        </form>
                                     </div>
                                 </div>
                             </div>

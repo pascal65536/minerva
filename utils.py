@@ -383,12 +383,29 @@ def get_checker_code(filename):
     return checker_code_dct
 
 
-if __name__ == "__main__":
-    run_flake8("/home/pascal65536/git/stand/stand.py")
-    # import pprint
+def get_key_checker_code(checker_code):
+    key = f"{checker_code['checker']}|{checker_code['code']}"
+    return key
 
-    # type_code_dct = dict()
-    # for filename, demo, hash in scan_python_files("/home/pascal65536/git/stand"):
-    #     print(filename)
-    #     pprint.pprint(get_checker_code(filename))
-    #     print()
+
+def get_teacher_lst():
+    teacher_lst = load_json("settings", "teacher.json", default=[])
+    return teacher_lst
+
+
+def get_teacher(filename):
+    teacher_lst = load_json("settings", "teacher.json", default=[])
+    ret = group_line_update_or_create(filename)
+    for _, checks in ret.items():
+        for checker_code in checks:
+            key = get_key_checker_code(checker_code)
+            teacher_lst.append(key)
+    teacher_sorted_lst = sorted(set(teacher_lst))
+    save_json("settings", "teacher.json", teacher_sorted_lst)
+    return teacher_sorted_lst
+
+
+if __name__ == "__main__":
+    filename = "utils.py"
+    ret = get_teacher(filename)
+    print(ret)
