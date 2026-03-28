@@ -404,8 +404,14 @@ def get_teacher(filename):
     save_json("settings", "teacher.json", teacher_sorted_lst)
     return teacher_sorted_lst
 
+# def get_group(key):
+#     import uuid
+#     return key, uuid.uuid5(uuid.NAMESPACE_DNS, key).hex
+
 
 if __name__ == "__main__":
-    filename = "utils.py"
-    ret = get_teacher(filename)
-    print(ret)
+    teacher_lst = load_json("settings", "teacher.json", default=[])
+    for teacher in teacher_lst:
+        print(teacher)
+        # print(get_group(teacher))
+        # print(get_group(teacher))

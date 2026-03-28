@@ -12,7 +12,9 @@ from utils import (
     group_line_update_or_create,
     raw_update_or_create,
     scan_python_files,
-    erase_data, get_key_checker_code, get_teacher_lst
+    erase_data,
+    get_key_checker_code,
+    get_teacher_lst,
 )
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired, ValidationError
@@ -24,15 +26,6 @@ settings_dct = load_json("settings", "app.json")
 app = Flask(__name__)
 app.secret_key = os.urandom(128)
 app.root_dir = settings_dct.get("root_dir", "fixtures")
-
-
-# class SettingsForm(FlaskForm):
-#     checker_code = StringField(validators=[DataRequired()])
-#     submit = SubmitField("Отправить")
-
-#     # Метод для получения данных как JSON (если нужно)
-#     def get_json_data(self):
-#         return {"checker_code": self.checker_code.data}
 
 
 class ProjectForm(FlaskForm):
@@ -118,17 +111,6 @@ def refresh(key):
     erase_data(key)
     flash(f"Отчет о файле обновлен", "info")
     return redirect(url_for("index", key=key))
-
-
-# @app.route("/settings", methods=["POST"])
-# def settings():
-#     form = SettingsForm()
-#     print(form.data)
-#     if form.validate_on_submit():
-#         settings_dct = form.get_json_data()
-#         print(settings_dct)
-#         flash("Настройки сохранены", "success")
-#     return redirect(url_for("index"))
 
 
 if __name__ == "__main__":
