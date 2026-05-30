@@ -44,10 +44,7 @@ class ProjectForm(FlaskForm):
 
         field.data = str(path_obj)
 
-    project_path = StringField(
-        "Полный путь к папке с Python-файлами",
-        validators=[DataRequired(), validate_project_path],
-    )
+    project_path = StringField("Полный путь к папке с Python-файлами", validators=[DataRequired(), validate_project_path],)
     submit = SubmitField("Сканировать")
 
 
