@@ -285,7 +285,7 @@ def raw_update_or_create(filename):
     raw_file = f"{md5_hash}_raw.json"
     raw_dct = load_json(data_dir, raw_file)
     if raw_dct == {}:
-        with open(filename) as f:
+        with open(filename, 'r', encoding='utf-8', errors='replace') as f:
             content = f.readlines()
         for line, raw in enumerate(content):
             raw_dct[line + 1] = raw.rstrip("\n")

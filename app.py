@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from flask import (
     Flask,
     render_template,
@@ -20,28 +21,32 @@ from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired, ValidationError
 from behoof import load_json
 
-
 settings_dct = load_json("settings", "app.json")
 
 app = Flask(__name__)
 app.secret_key = os.urandom(128)
-app.root_dir = settings_dct.get("root_dir", "fixtures")
+app.root_dir = Path(settings_dct.get("root_dir", "fixtures")).resolve().as_posix()
 
 
 class ProjectForm(FlaskForm):
-    def validator_project_path(self, field):
-        project_path = field.data
-        if not project_path:
+    def validate_project_path(self, field):
+        raw_path = field.data.strip()
+        if not raw_path:
             raise ValidationError("Путь должен быть указан.")
-        if not os.path.exists(project_path):
-            raise ValidationError("Путь должен реально существовать.")
-        if not os.path.isdir(project_path):
-            raise ValidationError("Путь должен быть директорией.")
-        return
+
+        try:
+            path_obj = Path(raw_path).resolve()
+        except Exception as e:
+            raise ValidationError(f"Некорректный формат пути: {e}")
+
+        if not path_obj.is_dir():
+            raise ValidationError("Путь должен быть существующей директорией.")
+
+        field.data = str(path_obj)
 
     project_path = StringField(
         "Полный путь к папке с Python-файлами",
-        validators=[DataRequired(), validator_project_path],
+        validators=[DataRequired(), validate_project_path],
     )
     submit = SubmitField("Сканировать")
 
@@ -58,7 +63,8 @@ def index():
 
     files_lst = scan_python_files(app.root_dir)
     selected_key = request.args.get("key")
-    if not len(files_lst):
+
+    if files_lst and not selected_key:
         *_, selected_key = files_lst[0]
 
     teacher_lst = get_teacher_lst()
@@ -66,6 +72,7 @@ def index():
     for display_path, filename, key in files_lst:
         if selected_key != key:
             continue
+
         python_dct = raw_update_or_create(display_path)
         vulture_dct = group_line_update_or_create(display_path)
         vulture_clean_dct = dict()
