@@ -89,7 +89,7 @@ def run_pycodestyle(filepath):
 
 
 def run_filestr(filepath):
-    with open(filepath) as f:
+    with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
         content = f.readlines()
 
     result = []
@@ -100,15 +100,17 @@ def run_filestr(filepath):
 
 def transform_flake8_to_vulture(flake8_output):
     local_dct = deepcopy(transform_dct)
+    color = 'danger'
     local_dct.update(
         {
             "code": flake8_output["code"],
             "file": flake8_output["filename"],
             "line": int(flake8_output["line_number"]),
             "column": int(flake8_output["column_number"]),
-            "message": flake8_output["text"],
+            "message": flake8_output["text"].replace('"', "'"),
             "physical": flake8_output["physical_line"].rstrip(),
             "checker": "flake8",
+            "color": color,
         }
     )
     return local_dct
@@ -131,7 +133,7 @@ def transform_bandit_to_vulture(bandit_output):
             "line": int(bandit_output["line_number"]),
             "column": int(bandit_output["col_offset"]),
             "column_end": int(bandit_output["end_col_offset"]),
-            "message": bandit_output["issue_text"],
+            "message": bandit_output["issue_text"].replace('"', "'"),
             "physical": bandit_output["code"].rstrip(),
             "more_info": bandit_output["more_info"],
             "issue_confidence": bandit_output["issue_confidence"],
@@ -197,7 +199,7 @@ def transform_pylint_to_vulture(pylint_output):
             "line": pylint_output["line"],
             "column": pylint_output["column"],
             "column_end": pylint_output["endColumn"],
-            "message": pylint_output["message"],
+            "message": pylint_output["message"].replace('"', "'"),
             "physical": pylint_output["obj"].rstrip(),
             "color": color,
         }
@@ -220,7 +222,7 @@ def transform_mypy_to_vulture(mypy_output):
             "file": mypy_output["file"],
             "line": mypy_output["line"],
             "column": mypy_output["column"],
-            "message": mypy_output["message"],
+            "message": mypy_output["message"].replace('"', "'"),
             "physical": mypy_output["hint"],
             "color": color,
         }
@@ -232,13 +234,15 @@ def transform_vulture_to_vulture(vulture_output):
     local_dct = deepcopy(transform_dct)
     code_str = "".join(vulture_output["message"].split()[:2])
     code = f"VU{sum(map(ord, code_str))}"
+    color = 'danger'
     local_dct.update(
         {
             "code": code,
             "checker": "vulture",
             "file": vulture_output["file"],
             "line": vulture_output["line"],
-            "message": vulture_output["message"],
+            "message": vulture_output["message"].replace('"', "'"),
+            "color": color,
         }
     )
     return local_dct
@@ -252,7 +256,7 @@ def transform_pycodestyle_to_vulture(pycodestyle_output):
             "code": pycodestyle_output["code"],
             "column": pycodestyle_output["column"],
             "line": pycodestyle_output["line"],
-            "message": pycodestyle_output["message"],
+            "message": pycodestyle_output["message"].replace('"', "'"),
         }
     )
     return local_dct
