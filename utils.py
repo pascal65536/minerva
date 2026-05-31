@@ -104,7 +104,7 @@ def transform_flake8_to_vulture(flake8_output):
     local_dct.update(
         {
             "code": flake8_output["code"],
-            "file": flake8_output["filename"],
+            "file": flake8_output["filename"].replace('\\', "/"),
             "line": int(flake8_output["line_number"]),
             "column": int(flake8_output["column_number"]),
             "message": flake8_output["text"].replace('"', "'"),
@@ -129,7 +129,7 @@ def transform_bandit_to_vulture(bandit_output):
         {
             "code": bandit_output["test_id"],
             "code_name": bandit_output["test_name"],
-            "file": bandit_output["filename"].strip("."),
+            "file": bandit_output["filename"].strip(".").replace('\\', "/"),
             "line": int(bandit_output["line_number"]),
             "column": int(bandit_output["col_offset"]),
             "column_end": int(bandit_output["end_col_offset"]),
@@ -149,32 +149,6 @@ def transform_bandit_to_vulture(bandit_output):
 
 def transform_pylint_to_vulture(pylint_output):
     local_dct = deepcopy(transform_dct)
-    symbol_txt = """
-        broad-exception-caught
-        consider-using-with
-        error
-        eval-used
-        invalid-name
-        line-too-long
-        missing-class-docstring
-        missing-function-docstring
-        missing-module-docstring
-        no-member
-        nonexistent-operator
-        pointless-statement
-        possibly-used-before-assignment
-        subprocess-run-check
-        too-few-public-methods
-        too-many-locals
-        too-many-statements
-        trailing-newlines
-        trailing-whitespace
-        unspecified-encoding
-        unused-import
-        unused-wildcard-import
-        wildcard-import
-        wrong-import-order
-        """
 
     if "type" not in pylint_output and "symbol" in pylint_output:
         if pylint_output["symbol"] in ["possibly-used-before-assignment"]:
@@ -195,7 +169,7 @@ def transform_pylint_to_vulture(pylint_output):
             "code": pylint_output["message-id"],
             "code_name": pylint_output["symbol"],
             "type": pylint_output["type"],
-            "file": pylint_output["path"],
+            "file": pylint_output["path"].replace('\\', "/"),
             "line": pylint_output["line"],
             "column": pylint_output["column"],
             "column_end": pylint_output["endColumn"],
@@ -219,7 +193,7 @@ def transform_mypy_to_vulture(mypy_output):
             "checker": "mypy",
             "code_name": mypy_output["code"],
             "issue_severity": mypy_output["severity"].upper(),
-            "file": mypy_output["file"],
+            "file": mypy_output["file"].replace('\\', "/"),
             "line": mypy_output["line"],
             "column": mypy_output["column"],
             "message": mypy_output["message"].replace('"', "'"),
@@ -239,7 +213,7 @@ def transform_vulture_to_vulture(vulture_output):
         {
             "code": code,
             "checker": "vulture",
-            "file": vulture_output["file"],
+            "file": vulture_output["file"].replace('\\', "/"),
             "line": vulture_output["line"],
             "message": vulture_output["message"].replace('"', "'"),
             "color": color,

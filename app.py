@@ -8,7 +8,10 @@ from flask import (
     url_for,
     flash,
 )
-from flask_wtf import FlaskForm
+
+from extensions import db
+from models import CheckerCode, Group
+from forms import ProjectForm
 from utils import (
     group_line_update_or_create,
     raw_update_or_create,
@@ -17,8 +20,6 @@ from utils import (
     get_key_checker_code,
     get_teacher_lst,
 )
-from wtforms import StringField, SubmitField
-from wtforms.validators import DataRequired, ValidationError
 from behoof import load_json
 
 settings_dct = load_json("settings", "app.json")
@@ -27,25 +28,9 @@ app = Flask(__name__)
 app.secret_key = os.urandom(128)
 app.root_dir = Path(settings_dct.get("root_dir", "fixtures")).resolve().as_posix()
 
-
-class ProjectForm(FlaskForm):
-    def validate_project_path(self, field):
-        raw_path = field.data.strip()
-        if not raw_path:
-            raise ValidationError("Путь должен быть указан.")
-
-        try:
-            path_obj = Path(raw_path).resolve()
-        except Exception as e:
-            raise ValidationError(f"Некорректный формат пути: {e}")
-
-        if not path_obj.is_dir():
-            raise ValidationError("Путь должен быть существующей директорией.")
-
-        field.data = str(path_obj)
-
-    project_path = StringField("Полный путь к папке с Python-файлами", validators=[DataRequired(), validate_project_path],)
-    submit = SubmitField("Сканировать")
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///checker_colors.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -88,12 +73,33 @@ def index():
             "python_dct": python_dct,
         }
 
+    color_map = {}
+    if selected_file_info:
+        for checks in selected_file_info["vulture_dct"].values():
+            for checker_code in checks:
+                checker = checker_code['checker']
+                code = checker_code['code']
+                try:
+                    dd = CheckerCode.query.filter_by(checker=checker, code=code).first()
+                    group_key = dd.group_key
+                    group = Group.query.filter_by(group_key=group_key).first()
+                    checker_code['color'] = group.color
+                except AttributeError:
+                    checker_code['color'] = 'dark'
+
+
+        # if pairs:
+            # stmt = db.select(DBColor).filter(tuple_(DBColor.checker, DBColor.code).in_(pairs))
+        #     records = db.session.scalars(stmt).all()
+        #     color_map = {(r.checker, r.code): r.color for r in records}
+
     return render_template(
         "index.html",
         form=form,
         files_lst=files_lst,
         selected_key=selected_key,
         selected_file_info=selected_file_info,
+        color_map=color_map,
     )
 
 
@@ -118,4 +124,9 @@ def refresh(key):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    debug = True
+    if debug:
+        # Опционально: авто-инициализация БД при отладке
+        with app.app_context():
+            db.create_all()
+    app.run(debug=debug)
