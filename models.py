@@ -1,6 +1,15 @@
 from extensions import db
 from utils import create_key
 
+import os, logging
+
+os.makedirs("log", exist_ok=True)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+h = logging.FileHandler("log/app.log", encoding="utf-8")
+h.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s %(message)s"))
+logger.addHandler(h)
+
 
 class Group(db.Model):
     __tablename__ = "groups"
@@ -65,20 +74,27 @@ class Group(db.Model):
         """
         Разбить группу на несколько новых групп.
         """
-        # Получить исходную группу
         obj = cls.query.filter_by(group_key=group_key).first()
+        logger.info(f"[SPLIT] Начало разгруппировки для key={group_key}, obj={obj}")
 
         if not obj:
             raise ValueError(f"Group '{group_key}' not found")
 
         cc_qs = CheckerCode.query.filter_by(group_key=group_key).all()
+        logger.info(f"[SPLIT] Найдено CheckerCode: {len(cc_qs)} шт")
 
-        result = list()
-        result.append(obj)
+        result = [obj]
         for cc in cc_qs:
             this_group_key = create_key(cc.checker, cc.code)
+            logger.info(
+                f"[SPLIT] CheckerCode checker={cc.checker} code={cc.code} -> this_group_key={this_group_key}"
+            )
             if group_key == this_group_key:
                 continue
+
+            # Обновить group_key у CheckerCode
+            cc.group_key = this_group_key
+
             group = Group.get_or_create(
                 group_key=this_group_key,
                 color=obj.color,
@@ -87,10 +103,16 @@ class Group(db.Model):
                 descriptions=obj.descriptions,
                 is_hide=obj.is_hide,
             )
+            logger.info(
+                f"[SPLIT] Создана/получена группа: group_key={group.group_key} is_hide={group.is_hide}"
+            )
             result.append(group)
-        db.session.commit()
-        return result
 
+        db.session.commit()
+        logger.info(f"[SPLIT] Завершено. Всего групп в результате: {len(result)}")
+        for g in result:
+            logger.info(f"[SPLIT] RESULT group_key={g.group_key} is_hide={g.is_hide}")
+        return result
 
     @classmethod
     def union(cls, group_key_list):
@@ -139,11 +161,8 @@ class Group(db.Model):
                 main_group.is_hide = g.is_hide
 
         # Переводим все CheckerCode в главную группу
-        CheckerCode.query.filter(
-            CheckerCode.group_key.in_(merge_group_keys)
-        ).update(
-            {"group_key": main_group_key},
-            synchronize_session=False
+        CheckerCode.query.filter(CheckerCode.group_key.in_(merge_group_keys)).update(
+            {"group_key": main_group_key}, synchronize_session=False
         )
 
         # Сохраняем изменения главной группы
@@ -158,14 +177,15 @@ class Group(db.Model):
         return main_group
 
 
-
 class CheckerCode(db.Model):
     __tablename__ = "checker_code"
 
     id = db.Column(db.Integer, primary_key=True)
     checker = db.Column(db.String(32), nullable=False, index=True)
     code = db.Column(db.String(32), nullable=False, index=True)
-    group_key = db.Column(db.String(32), db.ForeignKey("groups.group_key"), nullable=False, index=True)
+    group_key = db.Column(
+        db.String(32), db.ForeignKey("groups.group_key"), nullable=False, index=True
+    )
 
     __table_args__ = (db.UniqueConstraint("checker", "code", name="uq_checker_code"),)
 
@@ -254,5 +274,3 @@ class CheckerCode(db.Model):
                     db.session.commit()
 
         return result
-
-

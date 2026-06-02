@@ -25,7 +25,8 @@
                             {% if form.project_path.errors %}
                             <div class="text-danger small mt-1">
                                 {% for error in form.project_path.errors %}
-                                    ⚠ {{ error }}{% if not loop.last %}<br>{% endif %}
+                                    <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+                                    {{ error }}{% if not loop.last %}<br>{% endif %}
                                 {% endfor %}
                             </div>
                             {% endif %}
