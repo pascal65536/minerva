@@ -1,92 +1,153 @@
 from app import app
 from extensions import db
 from models import Group, CheckerCode
+from utils import create_key
 
 
-def commit_or_rollback(action_name: str):
-    try:
-        db.session.commit()
-        print(f"[OK] {action_name}")
-    except Exception as e:
-        db.session.rollback()
-        print(f"[FAIL] {action_name}: {e}")
+text = """
+flake8|F401
+pylint|W0611
+vulture|VU1327
+flake8|F401
+pylint|W0611
+flake8|F403
+flake8|F401
+pylint|W0401
+pylint|W0614
+mypy|MY1489
+flake8|F403
+flake8|F401
+pylint|W0401
+pylint|W0614
+mypy|MY1489
+flake8|MN004
+flake8|F401
+pylint|C0411
+vulture|VU1327
+flake8|E501
+bandit|B608
+vulture|E501
+flake8|MN001
+flake8|MN001
+pylint|W1514
+pylint|R1732
+flake8|E501
+pylint|C0301
+vulture|E501
+bandit|B403
+bandit|B404
+bandit|B105
+vulture|VU1498
+bandit|B608
+bandit|B307
+pylint|W0123
+bandit|B301
+bandit|B602
+pylint|C0115
+pylint|C0116
+pylint|C0116
+pylint|C0116
+pylint|C0116
+pylint|C0116
+pylint|C0116
+pylint|C0116
+pylint|C0116
+pylint|E0606
+pylint|C0116
+pylint|C0116
+vulture|VU1530
+pylint|C0116
+vulture|VU1530
+pylint|C0116
+vulture|VU1530
+pylint|C0116
+pylint|C0116
+pylint|C0116
+pylint|C0116
+pylint|W0718
+pylint|C0116
+pylint|R0914
+pylint|R0915
+pylint|W0718
+pylint|W0718
+pylint|C0114
+mypy|MY1489
+pylint|C0116
+pylint|W0718
+pylint|C0116
+pylint|C0116
+pylint|C0116
+pylint|C0116
+pylint|C0116
+mypy|MY1489
+mypy|MY1181
+mypy|MY1181
+mypy|MY1489
+mypy|MY1489
+mypy|MY1489
+mypy|MY1207
+pylint|C0114
+mypy|MY1489
+pylint|C0116
+pylint|W0718
+pylint|C0116
+pylint|C0116
+pylint|C0116
+pylint|C0116
+pylint|C0116
+mypy|MY1489
+mypy|MY1181
+mypy|MY1181
+mypy|MY1489
+mypy|MY1489
+mypy|MY1489
+mypy|MY1207
+"""
+
+with app.app_context():
+    db.create_all()
 
 
-def create_demo_data():
-    Group.get_or_create(
-        "security",
-        color="danger",
-        name="Security",
-        translate="Безопасность",
-        descriptions="Demo group",
-        is_hide=False,
-    )
-
-    Group.get_or_create(
-        "network",
-        color="dark",
-        name="Network",
-        translate="Сеть",
-        descriptions="Another demo group",
-        is_hide=False,
-    )
-
-    CheckerCode.get_or_create("bandit", "B101", group_key="security")
-    CheckerCode.get_or_create("bandit", "B102", group_key="network")
-    CheckerCode.get_or_create("flake8", "F401", group_key="network")
-
-    commit_or_rollback("create_demo_data")
+lineset = set()
+for line in text.splitlines():
+    if not line:
+        continue
+    lineset.add(line)
 
 
-def read_demo_data():
-    print("\nGroups:")
-    for group in Group.query.order_by(Group.id).all():
-        print(group.to_dict())
+with app.app_context():
+    for line in lineset:
+        checker, code = line.split("|")
+        cc_obj = CheckerCode.query.filter_by(checker=checker, code=code).first()
+        if cc_obj:
+            continue
+        checker_code2 = CheckerCode.create(
+            checker=checker,
+            code=code,
+            group_key=create_key(checker, code),
+            group_color="warning",
+            group_name="Line too long",
+            group_translate="lint.line_too_long",
+        )
 
-    print("\nChecker codes:")
-    for item in CheckerCode.query.order_by(CheckerCode.id).all():
-        print(item.to_dict())
+with app.app_context():
+    # cc_qs = CheckerCode.query.filter_by(checker='mypy').all()
+    # print(cc_qs)
 
+    # cc_list = [
+    #     {'checker': 'pylint', 'code': 'C0411'},
+    #     {'checker': 'flake8', 'code': 'MN001'},
+    #     {'checker': 'mypy', 'code': 'MY1207'},
+    # ]
+    # CheckerCode.in_group(cc_list)
 
-def demo_grouping():
-    print("\n--- Группировка ---")
-    ids = CheckerCode.group_this(
-        [("bandit", "B101"), ("bandit", "B102"), ("flake8", "F401")]
-    )
-    commit_or_rollback(f"group_this -> ids: {ids}")
-    return ids
-
-
-def demo_ungrouping(group_key: str):
-    print(f"\n--- Разгруппировка группы {group_key} ---")
-    ids = CheckerCode.ungroup_this(group_key)
-    commit_or_rollback(f"ungroup_this -> ids: {ids}")
-    return ids
-
-
-def main():
-    with app.app_context():
-        db.create_all()
-
-        print("=== 1. CREATE DEMO DATA ===")
-        create_demo_data()
-        read_demo_data()
-
-        print("\n=== 2. GROUPING ===")
-        demo_grouping()
-        read_demo_data()
-
-        first_item = CheckerCode.query.order_by(CheckerCode.id).first()
-        if first_item:
-            main_group_key = first_item.group_key
-            print(f"\nОбъединённая группа: {main_group_key}")
-
-            print("\n=== 3. UNGROUPING ===")
-            demo_ungrouping(main_group_key)
-            read_demo_data()
-        else:
-            print("\nНет объектов для разгруппировки.")
+    # obj = CheckerCode.query.filter_by(checker='flake8', code='MN001').first()
+    # res = Group.split(obj.group_key)
+    # print(res)
 
 
-if __name__ == "__main__":
-    main()
+    Group.union([
+        "c4ce5c546ae4192474e9893167d231f2",
+        "d9319807459f9ed5d3073acc39aefc0a",
+        "8cfb08d53c3ba6b38ca2d20715df174f",
+    ])

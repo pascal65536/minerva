@@ -1,96 +1,173 @@
+{% if selected_key and selected_file_info %}
 <div class="card">
-    <div
-        class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
         <div>
-            <i class="fa fa-puzzle-piece" aria-hidden="true"></i> Отчет:
+            <i class="fa fa-puzzle-piece" aria-hidden="true"></i> Отчёт:
         </div>
-
         <div>
             <strong>{{ selected_file_info.filename }}</strong>
-        </div>
-
-        <div>
-            <span class="badge bg-secondary me-2">{{ selected_file_info.display_path }}</span>
-            <a href="{{ url_for('refresh', key=selected_key) }}" class="btn btn-sm btn-warning">Обновить</a>
+            <span class="badge bg-secondary ms-2">{{ selected_file_info.display_path }}</span>
+            <a href="{{ url_for('refresh', key=selected_key) }}" class="btn btn-sm btn-warning ms-2">
+                Обновить
+            </a>
         </div>
     </div>
 
-    <div class="card-body">
-        <div id="accordion">
-            <table class="table table-bordered show-code">
+    <div class="card-body p-0">
+        {% if selected_file_info.vulture_dct and selected_file_info.python_dct %}
+        <form method="POST" action="{{ url_for('group_action') }}">
+            <table class="table table-bordered show-code mb-0">
                 <thead>
                     <tr>
-                        <th class="text-center col-1">№</th>
-                        <th class="text-center col-1">Check</th>
-                        <th class="text-center col-10">Python-код</th>
+                        <th class="text-center" style="width: 60px;">№</th>
+                        <th class="text-center" style="width: 80px;">Ошибки</th>
+                        <th>Python-код</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for key, python_code in selected_file_info.python_dct.items() %}
+                    {% for line_num, python_code in selected_file_info.python_dct.items() %}
+                    {% set groups = selected_file_info.vulture_dct.get(line_num, []) %}
+                    {% set error_count = 0 %}
+                    {% for g in groups %}
+                    {% for cc in g.checker_codes %}
+                    {% set error_count = error_count + 1 %}
+                    {% endfor %}
+                    {% endfor %}
+
                     <tr>
-                        <td class="text-center align-middle">{{ key }}</td>
+                        <td class="text-center align-middle">{{ line_num }}</td>
                         <td class="text-center align-middle">
-                            {% if selected_file_info.vulture_dct[key] %}
-                            {{ selected_file_info.vulture_dct[key]|count }} <button class="triangle-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#details-{{ key }}" aria-expanded="false" aria-controls="details-{{ key }}"></button>
-                            {% endif %}
+                            <button class="btn btn-sm btn-outline-primary ms-1" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#details-{{ line_num }}" aria-expanded="false"
+                                aria-controls="details-{{ line_num }}">
+                                ▶
+                            </button>
                         </td>
                         <td>
                             <pre><code class="language-python">{{ python_code }}</code></pre>
                         </td>
                     </tr>
 
-                    <tr class="collapse" id="details-{{ key }}">
+                    <!-- Развёрнутый блок с группами -->
+                    <tr class="collapse" id="details-{{ line_num }}">
                         <td colspan="3" class="p-0">
-                            <div class="p-3">
-                                <div class="card">
-                                    <div class="card-body py-2">
-                                        <h6 class="card-title text-muted mb-2 small"><i class="fa fa-search" aria-hidden="true"></i> Строка #{{ key }}</h6>
-                                        <form method="POST" action="{{ url_for('group_action') }}" class="d-inline">
-                                            {% for vulture in selected_file_info.vulture_dct[key] %}
-                                            <div class="issue-details p-2">
-                                                <p class="mb-1"><strong>Тип:</strong> <span class="badge bg-{{ vulture.color }}-subtle text-{{ vulture.color }}-emphasis">{{ vulture.code }}</span></p>
+                            <div class="p-3 bg-light">
+                                <h6 class="text-muted small mb-3">
+                                    <i class="fa fa-search" aria-hidden="true"></i> Строка #{{ line_num }}
+                                </h6>
 
-                                                {% if vulture.issue_cwe_link and vulture.issue_cwe_id %}
-                                                    <p class="mb-1"><strong>CWE:</strong> <a href="{{ vulture.issue_cwe_link }}">{{ vulture.issue_cwe_id }}</a></p>
+                                {% if groups %}
+                                {% for group in groups %}
+                                <div class="card mb-2 group-card {% if group.is_hide %}text-muted{% endif %}">
+                                    <div
+                                        class="card-header d-flex align-items-center justify-content-between
+                                                    {% if group.is_hide %}bg-secondary text-white{% else %}bg-light{% endif %}">
+                                        <div class="d-flex align-items-center">
+                                            <input class="form-check-input me-2" type="checkbox" name="group_keys"
+                                                value="{{ group.group_key }}" id="group-{{ group.group_key }}">
+                                            <label class="mb-0 me-3" for="group-{{ group.group_key }}">
+                                                <span class="badge me-2 bg-{{ group.color }}">
+                                                    {{ group.color }}
+                                                </span>
+                                                <strong>{{ group.name or group.group_key }}</strong>
+                                                {% if group.translate %}
+                                                    <small class="text-muted ms-2">({{ group.translate}})</small>
                                                 {% endif %}
+                                            </label>
+                                        </div>
+                                        <div>
+                                            <!-- Разгруппировать -->
+                                            <button type="submit" name="action" value="split"
+                                                class="btn btn-sm btn-outline-warning">
+                                                <i class="fa fa-object-ungroup" aria-hidden="true"></i>
+                                                Разгруппировать
+                                            </button>
+                                            <input type="hidden" name="group_key" value="{{ group.group_key }}">
 
-                                                {% for key, value in vulture.items() %}
-                                                {% if key not in ['type', 'more_info', 'issue_cwe_id', 'issue_cwe_link', 'color', 'line', 'checker', 'file', 'code', 'physical', 'column', 'column_end'] %}
-                                                    {% if value %}
-                                                        {% if key == 'code_name' and vulture.more_info %}
-                                                            <p class="mb-1"><strong>Название:</strong> <a href="{{ vulture.more_info }}">{{ value }}</a></p>
-                                                        {% else %}                                                                            
-                                                            <p class="mb-1"><strong>{{key}}:</strong> {{ value }}</p>
+                                            <!-- Скрыть/Показать -->
+                                            <button type="submit" name="action" value="toggle_hide"
+                                                class="btn btn-sm btn-outline-info">
+                                                {% if group.is_hide %}
+                                                <i class="fa fa-eye" aria-hidden="true"></i> Показать
+                                                {% else %}
+                                                <i class="fa fa-eye-slash" aria-hidden="true"></i> Скрыть
+                                                {% endif %}
+                                            </button>
+                                            <input type="hidden" name="group_key" value="{{ group.group_key }}">
+                                        </div>
+                                    </div>
+
+                                    <div class="card-body p-2">
+                                        {% if group.descriptions %}
+                                        <p class="card-text small text-muted mb-2">
+                                            {{ group.descriptions }}
+                                        </p>
+                                        {% endif %}
+
+                                        {% if group.checker_codes %}
+                                        <ul class="list-group list-group-flush">
+                                            {% for cc in group.checker_codes %}
+                                            <li class="list-group-item p-2">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <strong>{{ cc.checker }}</strong>:
+                                                        <code>{{ cc.code }}</code>
+                                                        {% if cc.raw %}
+                                                        <br>
+                                                        <small class="text-muted">
+                                                            {{ cc.raw.get("message", "Нет сообщения") }}
+                                                        </small>
                                                         {% endif %}
-                                                    {% endif %}
-                                                {% endif %}
-                                                {% endfor %}
-
-                                                <p class="mb-0"><strong>Источник:</strong> По версии {{ vulture.checker }}.</p>
-                                            </div>
-
-                                            <div class="form-check ms-3">
-                                                <input class="form-check-input" type="checkbox" name="issues" value="{{ vulture.checker }}|{{ vulture.code }}" id="issue2">
-                                                <label class="form-check-label" for="issue2">
-                                                    <small>Выбрать</small>
-                                                </label>
-                                            </div>                                        
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <span class="badge bg-light text-dark">
+                                                            line {{ line_num }}
+                                                        </span>
+                                                        {% if cc.raw and cc.raw.get("code_name") %}
+                                                        <br>
+                                                        <small class="text-muted">
+                                                            {{ cc.raw.get("code_name") }}
+                                                        </small>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </li>
                                             {% endfor %}
-                                            <!-- Кнопка для всех выбранных -->
-                                            <div class="mt-3 text-end">
-                                                <button type="submit" name="action" value="group" class="btn btn-danger">
-                                                    <i class="fa fa-object-group" aria-hidden="true"></i> Сгруппировать выбранные
-                                                </button>
-                                            </div>                                        
-                                        </form>
+                                        </ul>
+                                        {% else %}
+                                        <p class="text-muted small mb-0">
+                                            Нет связанных ошибок.
+                                        </p>
+                                        {% endif %}
                                     </div>
                                 </div>
+                                {% endfor %}
+
+                                <div class="mt-3 text-end">
+                                    <button type="submit" name="action" value="group" class="btn btn-danger">
+                                        <i class="fa fa-object-group" aria-hidden="true"></i>
+                                        Сгруппировать выбранные
+                                    </button>
+                                </div>
+                                {% else %}
+                                <p class="text-muted small">
+                                    Нет ошибок для этой строки.
+                                </p>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+        </form>
+        {% else %}
+        <div class="p-4 text-muted">
+            Нет данных анализатора для этого файла.
         </div>
+        {% endif %}
     </div>
 </div>
+{% else %}
+<p class="text-muted">Не выбран файл</p>
+{% endif %}

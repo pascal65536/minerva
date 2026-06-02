@@ -1,0 +1,96 @@
+<div class="card">
+    <div
+        class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fa fa-puzzle-piece" aria-hidden="true"></i> Отчет:
+        </div>
+
+        <div>
+            <strong>{{ selected_file_info.filename }}</strong>
+        </div>
+
+        <div>
+            <span class="badge bg-secondary me-2">{{ selected_file_info.display_path }}</span>
+            <a href="{{ url_for('refresh', key=selected_key) }}" class="btn btn-sm btn-warning">Обновить</a>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <div id="accordion">
+            <table class="table table-bordered show-code">
+                <thead>
+                    <tr>
+                        <th class="text-center col-1">№</th>
+                        <th class="text-center col-1">Check</th>
+                        <th class="text-center col-10">Python-код</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for key, python_code in selected_file_info.python_dct.items() %}
+                    <tr>
+                        <td class="text-center align-middle">{{ key }}</td>
+                        <td class="text-center align-middle">
+                            {% if selected_file_info.vulture_dct[key] %}
+                            {{ selected_file_info.vulture_dct[key]|count }} <button class="triangle-btn collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#details-{{ key }}" aria-expanded="false" aria-controls="details-{{ key }}"></button>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <pre><code class="language-python">{{ python_code }}</code></pre>
+                        </td>
+                    </tr>
+
+                    <tr class="collapse" id="details-{{ key }}">
+                        <td colspan="3" class="p-0">
+                            <div class="p-3">
+                                <div class="card">
+                                    <div class="card-body py-2">
+                                        <h6 class="card-title text-muted mb-2 small"><i class="fa fa-search" aria-hidden="true"></i> Строка #{{ key }}</h6>
+                                        <form method="POST" action="{{ url_for('group_action') }}" class="d-inline">
+                                            {% for vulture in selected_file_info.vulture_dct[key] %}
+                                            <div class="issue-details p-2">
+                                                <p class="mb-1"><strong>Тип:</strong> <span class="badge bg-{{ vulture.color }}-subtle text-{{ vulture.color }}-emphasis">{{ vulture.code }}</span></p>
+
+                                                {% if vulture.issue_cwe_link and vulture.issue_cwe_id %}
+                                                    <p class="mb-1"><strong>CWE:</strong> <a href="{{ vulture.issue_cwe_link }}">{{ vulture.issue_cwe_id }}</a></p>
+                                                {% endif %}
+
+                                                {% for key, value in vulture.items() %}
+                                                {% if key not in ['type', 'more_info', 'issue_cwe_id', 'issue_cwe_link', 'color', 'line', 'checker', 'file', 'code', 'physical', 'column', 'column_end'] %}
+                                                    {% if value %}
+                                                        {% if key == 'code_name' and vulture.more_info %}
+                                                            <p class="mb-1"><strong>Название:</strong> <a href="{{ vulture.more_info }}">{{ value }}</a></p>
+                                                        {% else %}                                                                            
+                                                            <p class="mb-1"><strong>{{key}}:</strong> {{ value }}</p>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                {% endif %}
+                                                {% endfor %}
+
+                                                <p class="mb-0"><strong>Источник:</strong> По версии {{ vulture.checker }}.</p>
+                                            </div>
+
+                                            <div class="form-check ms-3">
+                                                <input class="form-check-input" type="checkbox" name="issues" value="{{ vulture.checker }}|{{ vulture.code }}" id="issue2">
+                                                <label class="form-check-label" for="issue2">
+                                                    <small>Выбрать</small>
+                                                </label>
+                                            </div>                                        
+                                            {% endfor %}
+                                            <!-- Кнопка для всех выбранных -->
+                                            <div class="mt-3 text-end">
+                                                <button type="submit" name="action" value="group" class="btn btn-danger">
+                                                    <i class="fa fa-object-group" aria-hidden="true"></i> Сгруппировать выбранные
+                                                </button>
+                                            </div>                                        
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

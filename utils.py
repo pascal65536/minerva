@@ -4,7 +4,7 @@ import subprocess
 import json
 import re
 from collections import defaultdict
-from behoof import load_json, save_json, calculate_md5
+from behoof import load_json, save_json, calculate_md5, str_to_md5
 
 settings_dct = load_json("settings", "app.json")
 data_dir = settings_dct.get("data_dir", "data")
@@ -13,6 +13,13 @@ transform_dct = settings_dct.get("transform_dct", {})
 
 os.makedirs(data_dir, exist_ok=True)
 
+
+def create_key(checker, code):
+    return str_to_md5(get_key_checker_code(checker, code))
+
+def get_key_checker_code(checker, code):
+    key = f"{checker}|{code}"
+    return key
 
 def parse_vulture_text(output):
     results = []
@@ -89,7 +96,7 @@ def run_pycodestyle(filepath):
 
 
 def run_filestr(filepath):
-    with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+    with open(filepath, "r", encoding="utf-8", errors="replace") as f:
         content = f.readlines()
 
     result = []
@@ -100,11 +107,11 @@ def run_filestr(filepath):
 
 def transform_flake8_to_vulture(flake8_output):
     local_dct = deepcopy(transform_dct)
-    color = 'danger'
+    color = "danger"
     local_dct.update(
         {
             "code": flake8_output["code"],
-            "file": flake8_output["filename"].replace('\\', "/"),
+            "file": flake8_output["filename"].replace("\\", "/"),
             "line": int(flake8_output["line_number"]),
             "column": int(flake8_output["column_number"]),
             "message": flake8_output["text"].replace('"', "'"),
@@ -129,7 +136,7 @@ def transform_bandit_to_vulture(bandit_output):
         {
             "code": bandit_output["test_id"],
             "code_name": bandit_output["test_name"],
-            "file": bandit_output["filename"].strip(".").replace('\\', "/"),
+            "file": bandit_output["filename"].strip(".").replace("\\", "/"),
             "line": int(bandit_output["line_number"]),
             "column": int(bandit_output["col_offset"]),
             "column_end": int(bandit_output["end_col_offset"]),
@@ -169,7 +176,7 @@ def transform_pylint_to_vulture(pylint_output):
             "code": pylint_output["message-id"],
             "code_name": pylint_output["symbol"],
             "type": pylint_output["type"],
-            "file": pylint_output["path"].replace('\\', "/"),
+            "file": pylint_output["path"].replace("\\", "/"),
             "line": pylint_output["line"],
             "column": pylint_output["column"],
             "column_end": pylint_output["endColumn"],
@@ -193,7 +200,7 @@ def transform_mypy_to_vulture(mypy_output):
             "checker": "mypy",
             "code_name": mypy_output["code"],
             "issue_severity": mypy_output["severity"].upper(),
-            "file": mypy_output["file"].replace('\\', "/"),
+            "file": mypy_output["file"].replace("\\", "/"),
             "line": mypy_output["line"],
             "column": mypy_output["column"],
             "message": mypy_output["message"].replace('"', "'"),
@@ -208,12 +215,12 @@ def transform_vulture_to_vulture(vulture_output):
     local_dct = deepcopy(transform_dct)
     code_str = "".join(vulture_output["message"].split()[:2])
     code = f"VU{sum(map(ord, code_str))}"
-    color = 'danger'
+    color = "danger"
     local_dct.update(
         {
             "code": code,
             "checker": "vulture",
-            "file": vulture_output["file"].replace('\\', "/"),
+            "file": vulture_output["file"].replace("\\", "/"),
             "line": vulture_output["line"],
             "message": vulture_output["message"].replace('"', "'"),
             "color": color,
@@ -263,7 +270,7 @@ def raw_update_or_create(filename):
     raw_file = f"{md5_hash}_raw.json"
     raw_dct = load_json(data_dir, raw_file)
     if raw_dct == {}:
-        with open(filename, 'r', encoding='utf-8', errors='replace') as f:
+        with open(filename, "r", encoding="utf-8", errors="replace") as f:
             content = f.readlines()
         for line, raw in enumerate(content):
             raw_dct[line + 1] = raw.rstrip("\n")
@@ -322,6 +329,40 @@ def scan_python_files(root_dir):
     return sorted(py_files)
 
 
+# def scan_python_files(root_dir):
+#     """
+#     Сканировать директории на наличие Python-файлов.
+#     Возвращает список кортежей: (display_path, filename, key)
+#     """
+#     from pathlib import Path
+
+#     py_files = []
+#     root_path = Path(root_dir).resolve()
+
+#     if not root_path.exists() or not root_path.is_dir():
+#         return py_files
+
+#     for path in root_path.rglob("*.py"):
+#         # Пропускаем файлы, которых нет в текущей ФС (например, из контейнеров)
+#         if not path.exists() or not path.is_file():
+#             continue
+
+#         try:
+#             full_path = str(path)
+#             display_path = str(path.relative_to(root_path))
+#             filename = path.name
+#             key = calculate_md5(full_path)
+
+#             py_files.append((display_path, filename, key))
+#         except (OSError, ValueError):
+#             # Пропускаем файлы, которые не удалось обработать
+#             continue
+
+#     # Сортируем по имени файла
+#     py_files.sort(key=lambda x: x[1])
+
+#     return py_files
+
 def erase_data(key=None):
     for file in os.listdir(data_dir):
         if not file.endswith(".json"):
@@ -361,11 +402,6 @@ def get_checker_code(filename):
     return checker_code_dct
 
 
-def get_key_checker_code(checker_code):
-    key = f"{checker_code['checker']}|{checker_code['code']}"
-    return key
-
-
 def get_teacher_lst():
     teacher_lst = load_json("settings", "teacher.json", default=[])
     return teacher_lst
@@ -376,7 +412,7 @@ def get_teacher(filename):
     ret = group_line_update_or_create(filename)
     for _, checks in ret.items():
         for checker_code in checks:
-            key = get_key_checker_code(checker_code)
+            key = get_key_checker_code(checker_code['checker'], checker_code['code'])
             teacher_lst.append(key)
     teacher_sorted_lst = sorted(set(teacher_lst))
     save_json("settings", "teacher.json", teacher_sorted_lst)
@@ -387,5 +423,3 @@ if __name__ == "__main__":
     teacher_lst = load_json("settings", "teacher.json", default=[])
     for teacher in teacher_lst:
         print(teacher)
-        # print(get_group(teacher))
-        # print(get_group(teacher))

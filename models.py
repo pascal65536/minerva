@@ -1,17 +1,24 @@
-import uuid
 from extensions import db
+from utils import create_key
 
 
 class Group(db.Model):
     __tablename__ = "groups"
 
     id = db.Column(db.Integer, primary_key=True)
-    group_key = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    group_key = db.Column(db.String(32), unique=True, nullable=False, index=True)
     color = db.Column(db.String(32), nullable=False, default="info")
     name = db.Column(db.String(128), nullable=True)
     translate = db.Column(db.String(128), nullable=True)
     descriptions = db.Column(db.Text, nullable=True)
     is_hide = db.Column(db.Boolean, default=False)
+
+    checker_codes = db.relationship(
+        "CheckerCode",
+        backref="group_obj",
+        lazy="dynamic",
+        foreign_keys="CheckerCode.group_key",
+    )
 
     def __repr__(self):
         return f"<Group {self.group_key}: {self.name or 'unnamed'}>"
@@ -28,36 +35,142 @@ class Group(db.Model):
         }
 
     @classmethod
-    def get_or_create(cls, group_key, **defaults):
+    def get_or_create(
+        cls,
+        group_key,
+        color="info",
+        name=None,
+        translate=None,
+        descriptions=None,
+        is_hide=False,
+    ):
+        group = cls.query.filter_by(group_key=group_key).first()
+
+        if not group:
+            group = cls(
+                group_key=group_key,
+                color=color,
+                name=name,
+                translate=translate,
+                descriptions=descriptions,
+                is_hide=is_hide,
+            )
+            db.session.add(group)
+            db.session.commit()
+
+        return group
+
+    @classmethod
+    def split(cls, group_key):
+        """
+        Разбить группу на несколько новых групп.
+        """
+        # Получить исходную группу
         obj = cls.query.filter_by(group_key=group_key).first()
-        if obj is None:
-            obj = cls(group_key=group_key, **defaults)
-            db.session.add(obj)
-        return obj
+
+        if not obj:
+            raise ValueError(f"Group '{group_key}' not found")
+
+        cc_qs = CheckerCode.query.filter_by(group_key=group_key).all()
+
+        result = list()
+        result.append(obj)
+        for cc in cc_qs:
+            this_group_key = create_key(cc.checker, cc.code)
+            if group_key == this_group_key:
+                continue
+            group = Group.get_or_create(
+                group_key=this_group_key,
+                color=obj.color,
+                name=obj.name,
+                translate=obj.translate,
+                descriptions=obj.descriptions,
+                is_hide=obj.is_hide,
+            )
+            result.append(group)
+        db.session.commit()
+        return result
+
+
+    @classmethod
+    def union(cls, group_key_list):
+        """
+        Объединить несколько групп в одну.
+
+        Первый group_key в списке — главный.
+        Все CheckerCode остальных групп переводятся в главный group_key.
+        Данные объединяемых групп переносятся в главную группу.
+        Остальные группы удаляются.
+
+        Args:
+            group_key_list: список group_key, например ["g1", "g2", "g3"]
+
+        Returns:
+            Group: главная группа
+        """
+        if not group_key_list:
+            return None
+
+        # Убираем дубликаты, сохраняя порядок
+        uniq_keys = list(dict.fromkeys(group_key_list))
+        main_group_key = uniq_keys[0]
+
+        main_group = cls.query.filter_by(group_key=main_group_key).first()
+        if not main_group:
+            raise ValueError(f"Group '{main_group_key}' not found")
+
+        merge_groups = cls.query.filter(cls.group_key.in_(uniq_keys[1:])).all()
+        merge_group_keys = [g.group_key for g in merge_groups]
+
+        if not merge_groups:
+            return main_group
+
+        # Переносим данные групп в главную
+        for g in merge_groups:
+            if not main_group.color or main_group.color == "info":
+                main_group.color = g.color
+            if not main_group.name and g.name:
+                main_group.name = g.name
+            if not main_group.translate and g.translate:
+                main_group.translate = g.translate
+            if not main_group.descriptions and g.descriptions:
+                main_group.descriptions = g.descriptions
+            if not main_group.is_hide and g.is_hide:
+                main_group.is_hide = g.is_hide
+
+        # Переводим все CheckerCode в главную группу
+        CheckerCode.query.filter(
+            CheckerCode.group_key.in_(merge_group_keys)
+        ).update(
+            {"group_key": main_group_key},
+            synchronize_session=False
+        )
+
+        # Сохраняем изменения главной группы
+        db.session.add(main_group)
+        db.session.flush()
+
+        # Удаляем объединяемые группы
+        for g in merge_groups:
+            db.session.delete(g)
+
+        db.session.commit()
+        return main_group
+
 
 
 class CheckerCode(db.Model):
     __tablename__ = "checker_code"
 
     id = db.Column(db.Integer, primary_key=True)
-    checker = db.Column(db.String(64), nullable=False, index=True)
+    checker = db.Column(db.String(32), nullable=False, index=True)
     code = db.Column(db.String(32), nullable=False, index=True)
-    group_key = db.Column(db.String(64), nullable=False, index=True)
+    group_key = db.Column(db.String(32), db.ForeignKey("groups.group_key"), nullable=False, index=True)
 
     __table_args__ = (db.UniqueConstraint("checker", "code", name="uq_checker_code"),)
 
     def __repr__(self):
         return f"<CheckerCode {self.id}: {self.checker}:{self.code} {self.group_key}>"
-
-    @property
-    def color(self):
-        group = Group.query.filter_by(group_key=self.group_key).first()
-        return group.color if group else "info"
-
-    @property
-    def group_params(self):
-        group = Group.query.filter_by(group_key=self.group_key).first()
-        return group.to_dict() if group else {}
 
     def to_dict(self):
         return {
@@ -65,116 +178,81 @@ class CheckerCode(db.Model):
             "checker": self.checker,
             "code": self.code,
             "group_key": self.group_key,
-            "color": self.color,
-            "params": self.group_params,
         }
 
     @classmethod
-    def get_or_create(cls, checker, code, group_key=None):
-        obj = cls.query.filter_by(checker=checker, code=code).first()
-        if obj is None:
-            if group_key is None:
-                group_key = uuid.uuid4().hex
-            obj = cls(checker=checker, code=code, group_key=group_key)
-            db.session.add(obj)
-            Group.get_or_create(group_key)
-        return obj
-
-    @classmethod
-    def group_this(cls, checker_code_lst: list):
+    def create(
+        cls,
+        checker,
+        code,
+        group_key,
+        group_color="info",
+        group_name=None,
+        group_translate=None,
+        group_descriptions=None,
+        group_is_hide=False,
+        **kwargs,
+    ):
         """
-        Объединяет несколько объектов CheckerCode в одну группу.
-        Первый элемент в списке — главный, его group_key сохраняется (или создаётся новый, если нет).
-        Данные из старых групп сливаются в главную.
+        Создать CheckerCode, автоматически создав/получив Group.
         """
-        if not checker_code_lst:
-            return []
-
-        first_checker, first_code = checker_code_lst[0]
-        main_obj = cls.get_or_create(first_checker, first_code)
-        main_key = main_obj.group_key or uuid.uuid4().hex
-
-        ids = []
-        group_keys = set()
-
-        main_group = Group.query.filter_by(group_key=main_key).first()
-        if main_group is None:
-            main_group = Group(group_key=main_key)
-            db.session.add(main_group)
-            db.session.flush()
-
-        for checker, code in checker_code_lst:
-            obj = cls.get_or_create(checker, code)
-            ids.append(obj.id)
-
-            old_key = obj.group_key
-            if old_key:
-                group_keys.add(old_key)
-                if old_key != main_key:
-                    old_group = Group.query.filter_by(group_key=old_key).first()
-                    if old_group:
-                        cls._merge_group_data(main_group, old_group)
-
-            obj.group_key = main_key
-
-        db.session.flush()
-
-        cls.query.filter(cls.id.in_(ids)).update(
-            {cls.group_key: main_key},
-            synchronize_session=False
+        group = Group.get_or_create(
+            group_key=group_key,
+            color=group_color,
+            name=group_name,
+            translate=group_translate,
+            descriptions=group_descriptions,
+            is_hide=group_is_hide,
         )
 
-        unused_keys = group_keys - {main_key}
-        if unused_keys:
-            Group.query.filter(Group.group_key.in_(unused_keys)).delete(
-                synchronize_session=False
-            )
-
-        Group.get_or_create(main_key)
-        return ids
+        default_dct = {
+            "checker": checker,
+            "code": code,
+            "group_key": group.group_key,
+        }
+        checker_code = cls(**default_dct, **kwargs)
+        db.session.add(checker_code)
+        db.session.commit()
+        return checker_code
 
     @classmethod
-    def ungroup_this(cls, group_key: str):
-        """
-        Разгруппировка всех объектов CheckerCode с данным group_key:
-          - первый объект (по id) остаётся в исходной группе group_key;
-          - для остальных каждый объект получает свою новую группу с копированием данных из старой группы.
-        Возвращает список id объектов (включая первый).
-        """
-        objects = cls.query.filter_by(group_key=group_key).order_by(cls.id).all()
-        if not objects:
+    def in_group(cls, cc_list):
+        cc_group_key_lst = list()
+        first_obj = None
+        for cc in cc_list:
+            obj = cls.query.filter_by(**cc).first()
+            cc_group_key_lst.append(obj.group_key)
+            if not first_obj:
+                first_obj = obj
+
+        if not cc_group_key_lst:
             return []
 
-        old_group = Group.query.filter_by(group_key=group_key).first()
-        ids = []
+        result = cls.query.filter(cls.group_key.in_(cc_group_key_lst)).all()
+        if not first_obj:
+            first_obj = result[0]
 
-        for i, obj in enumerate(objects):
-            ids.append(obj.id)
+        for r in result:
+            if r == first_obj:
+                continue
+            r.group_key = first_obj.group_key
+        db.session.commit()
 
-            # Первый объект оставляем в старой группе
-            if i == 0:
+        # Удаляем группы, которые теперь пустые (исключая target_group_key)
+        for group_key in cc_group_key_lst:
+            if group_key == first_obj.group_key:
                 continue
 
-            # Создаём новую группу для этого объекта, копируя данные из старой
-            new_key = uuid.uuid4().hex
-            new_group = Group(
-                group_key=new_key,
-                color=old_group.color if old_group else "info",
-                name=old_group.name,
-                translate=old_group.translate,
-                descriptions=old_group.descriptions,
-                is_hide=old_group.is_hide,
-            )
-            db.session.add(new_group)
+            # Проверить, есть ли ещё CheckerCode с этим group_key
+            remaining_count = cls.query.filter_by(group_key=group_key).count()
 
-            obj.group_key = new_key
+            if remaining_count == 0:
+                # Удалить группу
+                group = Group.query.filter_by(group_key=group_key).first()
+                if group:
+                    db.session.delete(group)
+                    db.session.commit()
 
-        db.session.flush()
-        return ids
+        return result
 
-    @classmethod
-    def _merge_group_data(cls, main_group, old_group):
-        if not main_group.name and old_group.name:
-            main_group.name = old_group.name
-        if not main_group.descriptions and old_group.descriptions:
-            main_group.descriptions = old_group.descriptions
+
