@@ -2,6 +2,7 @@
 Скрипт инициализации БД с тестовыми данными.
 Запуск: python init_db.py
 """
+
 import sys
 from pathlib import Path
 
@@ -21,23 +22,38 @@ def init_db():
             return
 
         groups = [
-            Group(group_key="vulture_unused", color="#ff6b6b", name="Unused", descriptions="Неиспользуемый код"),
-            Group(group_key="flake8_style", color="#5f27cd", name="Style", descriptions="Стилевые предупреждения"),
-            Group(group_key="pylint_convention", color="#10ac84", name="Convention", descriptions="Соглашения"),
+            Group(
+                group_key="vulture_unused",
+                color="#ff6b6b",
+                name="Unused",
+                descriptions="Неиспользуемый код",
+            ),
+            Group(
+                group_key="flake8_style",
+                color="#5f27cd",
+                name="Style",
+                descriptions="Стилевые предупреждения",
+            ),
+            Group(
+                group_key="pylint_convention",
+                color="#10ac84",
+                name="Convention",
+                descriptions="Соглашения",
+            ),
         ]
         db.session.add_all(groups)
         db.session.commit()
 
         codes = [
             ("vulture", "V101", "vulture_unused"),
-            ("vulture", "V102", "vulture_unused"), 
+            ("vulture", "V102", "vulture_unused"),
             ("flake8", "E302", "flake8_style"),
-            ("flake8", "E501", "flake8_style"),   
+            ("flake8", "E501", "flake8_style"),
             ("pylint", "C0103", "pylint_convention"),
         ]
         for checker, code, group_key in codes:
             CheckerCode.get_or_create(checker, code, group_key=group_key)
-        
+
         db.session.commit()
         print(f"Добавлено {len(groups)} групп и {len(codes)} записей в БД.")
 

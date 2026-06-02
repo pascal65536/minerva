@@ -46,7 +46,9 @@ def validate_checker_codes(form, field):
 
     for p in pairs:
         if ":" not in p:
-            raise ValidationError(f"Некорректный формат: {p} (должен быть checker:code)")
+            raise ValidationError(
+                f"Некорректный формат: {p} (должен быть checker:code)"
+            )
 
     # опционально: проверить существование в БД для action group
     action = getattr(form, "action", None)
@@ -56,4 +58,3 @@ def validate_checker_codes(form, field):
             obj = CheckerCode.query.filter_by(checker=checker, code=code).first()
             if not obj:
                 raise ValidationError(f"Не найден CheckerCode: {checker}:{code}")
-

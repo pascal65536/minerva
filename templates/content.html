@@ -1,5 +1,5 @@
 {% if selected_key and selected_file_info %}
-<div class="card shadow-sm">
+<div class="card">
     <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
         <div>
             <i class="fa fa-puzzle-piece" aria-hidden="true"></i> Отчёт:
@@ -8,7 +8,7 @@
             <strong>{{ selected_file_info.filename }}</strong>
             <span class="badge bg-secondary ms-2">{{ selected_file_info.display_path }}</span>
             <a href="{{ url_for('refresh', key=selected_key) }}" class="btn btn-sm btn-warning ms-2">
-                Обновить
+                <i class="fa fa-refresh"></i> Обновить
             </a>
         </div>
     </div>
@@ -16,10 +16,9 @@
     <div class="card-body p-0">
         {% if selected_file_info.vulture_dct and selected_file_info.python_dct %}
         <form method="POST" action="{{ url_for('group_action') }}" id="main-form">
-            <!-- Глобальное скрытое поле для group_key, чтобы избежать дублирования и путаницы при сабмите -->
             <input type="hidden" name="group_key" id="global-group-key" value="">
             
-            <table class="table table-bordered show-code mb-0">
+            <table class="table table-bordered mb-0">
                 <thead>
                     <tr>
                         <th class="text-center" style="width: 50px;">№</th>
@@ -27,20 +26,17 @@
                         <th>Python-код</th>
                     </tr>
                 </thead>
-                <!-- id="accordion-{{ selected_key }}" нужен для работы аккордиона (сворачивания других строк) -->
-                <tbody id="accordion-{{ selected_key }}">
+                <tbody>
                     {% for line_num, python_code in selected_file_info.python_dct.items() %}
                     {% set groups = selected_file_info.vulture_dct.get(line_num, []) %}
-
+                    
                     <tr>
                         <td class="text-center align-middle">{{ line_num }}</td>
                         <td class="text-center align-middle">
                             {% if groups %}
                             <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#details-{{ line_num }}" 
-                                data-bs-parent="#accordion-{{ selected_key }}"
-                                aria-expanded="false" aria-controls="details-{{ line_num }}">
-                                <i class="fa-solid fa-caret-right"></i>
+                                data-bs-target="#details-{{ line_num }}">
+                                <i class="fa-solid fa-caret-right"></i> {{ groups|length }}
                             </button>
                             {% endif %}
                         </td>
@@ -48,192 +44,28 @@
                             <pre class="mb-0"><code class="language-python">{{ python_code }}</code></pre>
                         </td>
                     </tr>
-
-                    <!-- Развёрнутый блок с деревом ошибок -->
-                    <tr class="collapse" id="details-{{ line_num }}" data-bs-parent="#accordion-{{ selected_key }}">
-                        <td colspan="3" class="p-2 bg-light">
-                            <h6 class="text-muted small mb-2">
-                                <i class="fa fa-search" aria-hidden="true"></i> Строка #{{ line_num }}
+                    
+                    <tr class="collapse" id="details-{{ line_num }}">
+                        <td colspan="3" class="p-3 bg-light">
+                            <h6 class="text-muted small mb-3">
+                                <i class="fa fa-search" aria-hidden="true"></i> 
+                                Анализ строки #{{ line_num }} ({{ groups|length }} ошибок)
                             </h6>
-
+                            
                             {% if groups %}
-                            <div class="d-flex flex-column gap-1">
+                            <div>
                                 {% for group in groups %}
-                                {% set group_idx = loop.index %}
-                                
-                                <!-- Компактная карточка группы -->
-                                <div class="card group-card shadow-sm {% if group.is_hide %}text-muted border-secondary{% endif %}" style="font-size: 0.85rem;">
-                                    <div class="card-header py-1 px-2 d-flex align-items-center justify-content-between
-                                                {% if group.is_hide %}bg-secondary text-white{% else %}bg-{{ group.color }} text-white{% endif %}" 
-                                         style="font-size: 0.8rem;">
-                                        <div class="d-flex align-items-center">
-                                            <input class="form-check-input me-2" type="checkbox" name="group_keys"
-                                                value="{{ group.group_key }}" id="group-{{ group.group_key }}">
-                                            <label class="mb-0 fw-bold" for="group-{{ group.group_key }}">
-                                                {{ group.name or group.group_key }}
-                                            </label>
-                                        </div>
-                                        <div class="d-flex gap-1">
-                                            <!-- Редактировать -->
-                                            <button type="button" 
-                                                class="btn btn-sm btn-outline-light py-0 px-1" 
-                                                style="font-size: 0.75rem;"
-                                                data-bs-toggle="collapse" 
-                                                data-bs-target="#edit-form-{{ group.group_key }}">
-                                                <i class="fa fa-pencil"></i> Редактировать
-                                            </button>
-
-                                            <!-- Разгруппировать -->
-                                            <button type="submit" name="action" value="split"
-                                                class="btn btn-sm btn-outline-warning text-white py-0 px-1" style="font-size: 0.75rem;"
-                                                onclick="document.getElementById('global-group-key').value='{{ group.group_key }}';">
-                                                <i class="fa fa-object-ungroup"></i> Разгруппировать
-                                            </button>
-
-                                            <!-- Скрыть/Показать -->
-                                            <button type="submit" name="action" value="toggle_hide"
-                                                class="btn btn-sm btn-outline-info text-white py-0 px-1" style="font-size: 0.75rem;"
-                                                onclick="document.getElementById('global-group-key').value='{{ group.group_key }}';">
-                                                {% if group.is_hide %}
-                                                <i class="fa fa-eye"></i> Показать
-                                                {% else %}
-                                                <i class="fa fa-eye-slash"></i> Скрыть
-                                                {% endif %}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="card-body p-1">
-                                        <!-- Форма редактирования (скрыта по умолчанию) - отдельная форма -->
-                                        <div class="collapse mb-2" id="edit-form-{{ group.group_key }}">
-                                            <div class="card card-body bg-light border p-2" style="font-size: 0.85rem;">
-                                                <h6 class="mb-2">Редактирование группы: {{ group.group_key }}</h6>
-                                                
-                                                <form method="POST" action="{{ url_for('group_action') }}" id="edit-form-{{ group.group_key }}">
-                                                    <input type="hidden" name="edit_group_key" value="{{ group.group_key }}">
-                                                    
-                                                    <div class="mb-2">
-                                                        <label class="form-label small fw-bold mb-1">Название группы</label>
-                                                        <input type="text" class="form-control form-control-sm" 
-                                                               name="edit_name" value="{{ group.name or '' }}">
-                                                    </div>
-                                                    
-                                                    <div class="mb-2">
-                                                        <label class="form-label small fw-bold mb-1">Перевод/Алиас</label>
-                                                        <input type="text" class="form-control form-control-sm" 
-                                                               name="edit_translate" value="{{ group.translate or '' }}">
-                                                    </div>
-                                                    
-                                                    <div class="mb-2">
-                                                        <label class="form-label small fw-bold mb-1">Описание</label>
-                                                        <textarea class="form-control form-control-sm" 
-                                                                  name="edit_descriptions" rows="2">{{ group.descriptions or '' }}</textarea>
-                                                    </div>
-                                                    
-                                                    <div class="mb-2">
-                                                        <label class="form-label small fw-bold mb-1">Цвет группы (Bootstrap)</label>
-                                                        <select class="form-select form-select-sm" name="edit_color">
-                                                            <option value="primary" {% if group.color == 'primary' %}selected{% endif %}>🔵 Primary (синий)</option>
-                                                            <option value="secondary" {% if group.color == 'secondary' %}selected{% endif %}>⚪ Secondary (серый)</option>
-                                                            <option value="success" {% if group.color == 'success' %}selected{% endif %}>🟢 Success (зеленый)</option>
-                                                            <option value="danger" {% if group.color == 'danger' %}selected{% endif %}>🔴 Danger (красный)</option>
-                                                            <option value="warning" {% if group.color == 'warning' %}selected{% endif %}>🟡 Warning (желтый)</option>
-                                                            <option value="info" {% if group.color == 'info' %}selected{% endif %}>🔵 Info (голубой)</option>
-                                                            <option value="dark" {% if group.color == 'dark' %}selected{% endif %}>⚫ Dark (черный)</option>
-                                                        </select>
-                                                    </div>
-                                                    
-                                                    <div class="d-flex gap-2">
-                                                        <button type="submit" name="action" value="edit" 
-                                                                class="btn btn-sm btn-primary">
-                                                            <i class="fa fa-save"></i> Сохранить
-                                                        </button>
-                                                        <button type="button" class="btn btn-sm btn-secondary" 
-                                                                data-bs-toggle="collapse" 
-                                                                data-bs-target="#edit-form-{{ group.group_key }}">
-                                                            <i class="fa fa-times"></i> Отмена
-                                                        </button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                        
-                                        {% if group.descriptions %}
-                                        <p class="card-text text-muted mb-1 fst-italic px-1" style="font-size: 0.75rem;">
-                                            {{ group.descriptions }}
-                                        </p>
-                                        {% endif %}
-
-                                        {% if group.checker_codes %}
-                                        <!-- Вкладки для каждой ошибки -->
-                                        <ul class="nav nav-tabs" id="tabs-{{ line_num }}-{{ group_idx }}" role="tablist" style="font-size: 0.75rem;">
-                                            {% for cc in group.checker_codes %}
-                                            <li class="nav-item" role="presentation">
-                                                <button class="nav-link py-0 px-2 {% if loop.first %}active{% endif %}" 
-                                                        id="tab-{{ line_num }}-{{ group_idx }}-{{ loop.index }}" 
-                                                        data-bs-toggle="tab" 
-                                                        data-bs-target="#pane-{{ line_num }}-{{ group_idx }}-{{ loop.index }}" 
-                                                        type="button" role="tab">
-                                                    <i class="fa-solid fa-bug text-{{ group.color }}"></i> {{ cc.code }}
-                                                </button>
-                                            </li>
-                                            {% endfor %}
-                                        </ul>
-                                        
-                                        <div class="tab-content border border-top-0 p-2" id="tabs-content-{{ line_num }}-{{ group_idx }}">
-                                            {% for cc in group.checker_codes %}
-                                            <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
-                                                 id="pane-{{ line_num }}-{{ group_idx }}-{{ loop.index }}" 
-                                                 role="tabpanel">
-                                                
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <div>
-                                                        <strong>{{ cc.checker }}</strong>: <code>{{ cc.code }}</code>
-                                                    </div>
-                                                    <span class="badge bg-light text-dark" style="font-size: 0.7rem;">line {{ line_num }}</span>
-                                                </div>
-
-                                                {% if cc.raw %}
-                                                <div class="small text-muted bg-light p-2 rounded" style="font-size: 0.75rem;">
-                                                    <div class="mb-1"><strong>Сообщение:</strong> {{ cc.raw.get("message", "Нет сообщения") }}</div>
-                                                    {% if cc.raw.get("code_name") %}
-                                                    <div class="mb-1"><strong>Код:</strong> {{ cc.raw.get("code_name") }}</div>
-                                                    {% endif %}
-                                                    
-                                                    <!-- Сворачиваемый блок для сырых данных, чтобы не загромождать интерфейс -->
-                                                    <details class="mt-1">
-                                                        <summary style="font-size: 0.7rem; cursor: pointer;">Данные анализатора</summary>
-                                                        <ul class="list-unstyled mb-0 ms-3 mt-1" style="font-size: 0.7rem;">
-                                                            {% for key, value in cc.raw.items() %}
-                                                            {% if key not in ['type', 'more_info', 'issue_cwe_id', 'issue_cwe_link', 'color', 'line', 'checker', 'file', 'code', 'physical', 'column', 'column_end', 'message', 'code_name'] %}
-                                                            {% if value %}
-                                                            <li><strong>{{ key }}:</strong> {{ value }}</li>
-                                                            {% endif %}
-                                                            {% endif %}
-                                                            {% endfor %}
-                                                        </ul>
-                                                    </details>
-                                                </div>
-                                                {% endif %}
-
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                        {% else %}
-                                        <p class="text-muted small mb-0 px-1">Нет связанных ошибок.</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                                    {% include 'group_card.html' %}
                                 {% endfor %}
                             </div>
-
-                            <div class="mt-2 text-end">
-                                <button type="submit" name="action" value="group" class="btn btn-sm btn-danger">
+                            
+                            <div class="mt-3 text-end">
+                                <button type="submit" name="action" value="group" class="btn btn-danger btn-sm">
                                     <i class="fa fa-object-group"></i> Сгруппировать выбранные
                                 </button>
                             </div>
                             {% else %}
-                            <p class="text-muted small mb-0">Нет ошибок для этой строки.</p>
+                            <p class="text-muted small mb-0">Ошибок не найдено.</p>
                             {% endif %}
                         </td>
                     </tr>
@@ -242,12 +74,16 @@
             </table>
         </form>
         {% else %}
-        <div class="p-4 text-muted">
-            Нет данных анализатора для этого файла.
+        <div class="p-4 text-center text-muted">
+            <p>Нет данных анализатора для этого файла.</p>
+            <small>Запустите анализ или выберите другой файл.</small>
         </div>
         {% endif %}
     </div>
 </div>
 {% else %}
-    <p class="text-muted">Не выбран файл</p>
+<div class="alert alert-info">
+    <i class="fa fa-info-circle"></i> Не выбран файл для анализа.
+    <br><small>Выберите файл из списка слева.</small>
+</div>
 {% endif %}

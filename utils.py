@@ -17,9 +17,11 @@ os.makedirs(data_dir, exist_ok=True)
 def create_key(checker, code):
     return str_to_md5(get_key_checker_code(checker, code))
 
+
 def get_key_checker_code(checker, code):
     key = f"{checker}|{code}"
     return key
+
 
 def parse_vulture_text(output):
     results = []
@@ -98,7 +100,6 @@ def run_pycodestyle(filepath):
 def run_filestr(filepath):
     with open(filepath, "r", encoding="utf-8", errors="replace") as f:
         content = f.readlines()
-
     result = []
     for line, raw in enumerate(content):
         result.append({"line": line + 1, "raw": raw.strip("\n")})
@@ -156,7 +157,6 @@ def transform_bandit_to_vulture(bandit_output):
 
 def transform_pylint_to_vulture(pylint_output):
     local_dct = deepcopy(transform_dct)
-
     if "type" not in pylint_output and "symbol" in pylint_output:
         if pylint_output["symbol"] in ["possibly-used-before-assignment"]:
             pylint_output["type"] = "error"
@@ -280,37 +280,30 @@ def raw_update_or_create(filename):
 
 def calc_group_line(filename):
     group_line = defaultdict(list)
-
     res = run_flake8(filename)
     for flake8_output in res:
         r = transform_flake8_to_vulture(flake8_output)
         group_line[r["line"]].append(r)
-
     res = run_bandit(filename)
     for bandit_output in res:
         r = transform_bandit_to_vulture(bandit_output)
         group_line[r["line"]].append(r)
-
     res = run_pylint(filename)
     for pylint_output in res:
         r = transform_pylint_to_vulture(pylint_output)
         group_line[r["line"]].append(r)
-
     res = run_mypy(filename)
     for mypy_output in res:
         r = transform_mypy_to_vulture(mypy_output)
         group_line[r["line"]].append(r)
-
     res = run_vulture(filename)
     for vulture_output in res:
         r = transform_vulture_to_vulture(vulture_output)
         group_line[r["line"]].append(r)
-
     res = run_pycodestyle(filename)
     for pycodestyle_output in res:
         r = transform_pycodestyle_to_vulture(pycodestyle_output)
         group_line[r["line"]].append(r)
-
     return group_line
 
 
@@ -318,7 +311,6 @@ def scan_python_files(root_dir):
     py_files = []
     if not os.path.exists(root_dir):
         return py_files
-
     for dirpath, dirnames, filenames in os.walk(root_dir):
         dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
         for f in filenames:
@@ -328,40 +320,6 @@ def scan_python_files(root_dir):
             py_files.append((full_path, f, calculate_md5(full_path)))
     return sorted(py_files)
 
-
-# def scan_python_files(root_dir):
-#     """
-#     Сканировать директории на наличие Python-файлов.
-#     Возвращает список кортежей: (display_path, filename, key)
-#     """
-#     from pathlib import Path
-
-#     py_files = []
-#     root_path = Path(root_dir).resolve()
-
-#     if not root_path.exists() or not root_path.is_dir():
-#         return py_files
-
-#     for path in root_path.rglob("*.py"):
-#         # Пропускаем файлы, которых нет в текущей ФС (например, из контейнеров)
-#         if not path.exists() or not path.is_file():
-#             continue
-
-#         try:
-#             full_path = str(path)
-#             display_path = str(path.relative_to(root_path))
-#             filename = path.name
-#             key = calculate_md5(full_path)
-
-#             py_files.append((display_path, filename, key))
-#         except (OSError, ValueError):
-#             # Пропускаем файлы, которые не удалось обработать
-#             continue
-
-#     # Сортируем по имени файла
-#     py_files.sort(key=lambda x: x[1])
-
-#     return py_files
 
 def erase_data(key=None):
     for file in os.listdir(data_dir):
@@ -384,7 +342,6 @@ def get_checker_code(filename):
             if key in accumulator:
                 continue
             accumulator.add(key)
-
             test.pop("file")
             test.pop("line")
             test.pop("column")
@@ -412,7 +369,7 @@ def get_teacher(filename):
     ret = group_line_update_or_create(filename)
     for _, checks in ret.items():
         for checker_code in checks:
-            key = get_key_checker_code(checker_code['checker'], checker_code['code'])
+            key = get_key_checker_code(checker_code["checker"], checker_code["code"])
             teacher_lst.append(key)
     teacher_sorted_lst = sorted(set(teacher_lst))
     save_json("settings", "teacher.json", teacher_sorted_lst)

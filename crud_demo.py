@@ -145,9 +145,10 @@ with app.app_context():
     # res = Group.split(obj.group_key)
     # print(res)
 
-
-    Group.union([
-        "c4ce5c546ae4192474e9893167d231f2",
-        "d9319807459f9ed5d3073acc39aefc0a",
-        "8cfb08d53c3ba6b38ca2d20715df174f",
-    ])
+    Group.union(
+        [
+            "c4ce5c546ae4192474e9893167d231f2",
+            "d9319807459f9ed5d3073acc39aefc0a",
+            "8cfb08d53c3ba6b38ca2d20715df174f",
+        ]
+    )

@@ -6,7 +6,8 @@ import json
 import re
 import sys
 
-password = 'qwertyuiopasdfghjklzxcvbnm'
+password = "qwertyuiopasdfghjklzxcvbnm"
+
 
 class Checker:
     def __init__(self, filepath):
@@ -25,7 +26,8 @@ class Checker:
 
     def __line__(self, lines_dct):
         return lines_dct
-    
+
+
 word_set_1 = set(input())
 word_set_2 = set(input())
 word_set_3 = set(input())
@@ -34,6 +36,7 @@ print(*sorted(word_set_1 & word_set_2 & word_set_3))
 
 def col(a, b):
     """Тест"""
+
     def Tripple(c):
         return c * 3
 
@@ -45,4 +48,4 @@ q = "1"
 w = "2"
 E = col(q, w)
 
-eval('6 * 8')
+eval("6 * 8")

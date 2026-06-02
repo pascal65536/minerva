@@ -54,7 +54,6 @@ class Group(db.Model):
         is_hide=False,
     ):
         group = cls.query.filter_by(group_key=group_key).first()
-
         if not group:
             group = cls(
                 group_key=group_key,
@@ -66,23 +65,16 @@ class Group(db.Model):
             )
             db.session.add(group)
             db.session.commit()
-
         return group
 
     @classmethod
     def split(cls, group_key):
-        """
-        Разбить группу на несколько новых групп.
-        """
         obj = cls.query.filter_by(group_key=group_key).first()
         logger.info(f"[SPLIT] Начало разгруппировки для key={group_key}, obj={obj}")
-
         if not obj:
             raise ValueError(f"Group '{group_key}' not found")
-
         cc_qs = CheckerCode.query.filter_by(group_key=group_key).all()
         logger.info(f"[SPLIT] Найдено CheckerCode: {len(cc_qs)} шт")
-
         result = [obj]
         for cc in cc_qs:
             this_group_key = create_key(cc.checker, cc.code)
@@ -91,10 +83,7 @@ class Group(db.Model):
             )
             if group_key == this_group_key:
                 continue
-
-            # Обновить group_key у CheckerCode
             cc.group_key = this_group_key
-
             group = Group.get_or_create(
                 group_key=this_group_key,
                 color=obj.color,
@@ -107,7 +96,6 @@ class Group(db.Model):
                 f"[SPLIT] Создана/получена группа: group_key={group.group_key} is_hide={group.is_hide}"
             )
             result.append(group)
-
         db.session.commit()
         logger.info(f"[SPLIT] Завершено. Всего групп в результате: {len(result)}")
         for g in result:
@@ -116,38 +104,17 @@ class Group(db.Model):
 
     @classmethod
     def union(cls, group_key_list):
-        """
-        Объединить несколько групп в одну.
-
-        Первый group_key в списке — главный.
-        Все CheckerCode остальных групп переводятся в главный group_key.
-        Данные объединяемых групп переносятся в главную группу.
-        Остальные группы удаляются.
-
-        Args:
-            group_key_list: список group_key, например ["g1", "g2", "g3"]
-
-        Returns:
-            Group: главная группа
-        """
         if not group_key_list:
             return None
-
-        # Убираем дубликаты, сохраняя порядок
         uniq_keys = list(dict.fromkeys(group_key_list))
         main_group_key = uniq_keys[0]
-
         main_group = cls.query.filter_by(group_key=main_group_key).first()
         if not main_group:
             raise ValueError(f"Group '{main_group_key}' not found")
-
         merge_groups = cls.query.filter(cls.group_key.in_(uniq_keys[1:])).all()
         merge_group_keys = [g.group_key for g in merge_groups]
-
         if not merge_groups:
             return main_group
-
-        # Переносим данные групп в главную
         for g in merge_groups:
             if not main_group.color or main_group.color == "info":
                 main_group.color = g.color
@@ -159,20 +126,13 @@ class Group(db.Model):
                 main_group.descriptions = g.descriptions
             if not main_group.is_hide and g.is_hide:
                 main_group.is_hide = g.is_hide
-
-        # Переводим все CheckerCode в главную группу
         CheckerCode.query.filter(CheckerCode.group_key.in_(merge_group_keys)).update(
             {"group_key": main_group_key}, synchronize_session=False
         )
-
-        # Сохраняем изменения главной группы
         db.session.add(main_group)
         db.session.flush()
-
-        # Удаляем объединяемые группы
         for g in merge_groups:
             db.session.delete(g)
-
         db.session.commit()
         return main_group
 
@@ -213,9 +173,6 @@ class CheckerCode(db.Model):
         group_is_hide=False,
         **kwargs,
     ):
-        """
-        Создать CheckerCode, автоматически создав/получив Group.
-        """
         group = Group.get_or_create(
             group_key=group_key,
             color=group_color,
@@ -224,7 +181,6 @@ class CheckerCode(db.Model):
             descriptions=group_descriptions,
             is_hide=group_is_hide,
         )
-
         default_dct = {
             "checker": checker,
             "code": code,
@@ -244,33 +200,23 @@ class CheckerCode(db.Model):
             cc_group_key_lst.append(obj.group_key)
             if not first_obj:
                 first_obj = obj
-
         if not cc_group_key_lst:
             return []
-
         result = cls.query.filter(cls.group_key.in_(cc_group_key_lst)).all()
         if not first_obj:
             first_obj = result[0]
-
         for r in result:
             if r == first_obj:
                 continue
             r.group_key = first_obj.group_key
         db.session.commit()
-
-        # Удаляем группы, которые теперь пустые (исключая target_group_key)
         for group_key in cc_group_key_lst:
             if group_key == first_obj.group_key:
                 continue
-
-            # Проверить, есть ли ещё CheckerCode с этим group_key
             remaining_count = cls.query.filter_by(group_key=group_key).count()
-
             if remaining_count == 0:
-                # Удалить группу
                 group = Group.query.filter_by(group_key=group_key).first()
                 if group:
                     db.session.delete(group)
                     db.session.commit()
-
         return result
