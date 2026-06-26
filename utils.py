@@ -11,6 +11,42 @@ data_dir = settings_dct.get("data_dir", "data")
 exclude_dirs = settings_dct.get("exclude_dirs", [])
 transform_dct = settings_dct.get("transform_dct", {})
 
+EXCLUDE_DIRS_BASE = {
+    ".cache",
+    ".env",
+    ".git",
+    ".idea",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".venv",
+    ".vscode",
+    "__pycache__",
+    "build",
+    "data",
+    "dist",
+    "egg-info",
+    "env",
+    "fixtures",
+    "instance",
+    "log",
+    "logs",
+    "old",
+    "minerva-plugin",
+    "node_modules",
+    "settings",
+    "venv",
+    "site-packages",
+    ".tox",
+    ".eggs",
+    ".nox",
+    "htmlcov",
+    ".coverage",
+    "migrations",
+}
+
+user_exclude = settings_dct.get("exclude_dirs", [])
+exclude_dirs = EXCLUDE_DIRS_BASE | set(user_exclude)
+
 os.makedirs(data_dir, exist_ok=True)
 
 
@@ -311,6 +347,7 @@ def scan_python_files(root_dir):
     py_files = []
     if not os.path.exists(root_dir):
         return py_files
+
     for dirpath, dirnames, filenames in os.walk(root_dir):
         dirnames[:] = [d for d in dirnames if d not in exclude_dirs]
         for f in filenames:
@@ -318,6 +355,7 @@ def scan_python_files(root_dir):
                 continue
             full_path = os.path.join(dirpath, f)
             py_files.append((full_path, f, calculate_md5(full_path)))
+
     return sorted(py_files)
 
 

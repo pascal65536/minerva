@@ -265,5 +265,7 @@ __marimo__/
  *.m4v
  *.f4v
  *.swf
+ *.log
  *.d
-
+data/
+log/

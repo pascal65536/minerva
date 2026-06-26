@@ -16,13 +16,11 @@ from utils import (
     create_key,
 )
 
-
 settings_dct = load_json("settings", "app.json")
 
 app = Flask(__name__)
-app.secret_key = os.urandom(128)
+app.secret_key = os.urandom(256)
 app.root_dir = Path(settings_dct.get("root_dir", "fixtures")).resolve().as_posix()
-
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///checker_colors.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
