@@ -280,7 +280,7 @@ def transform_pycodestyle_to_vulture(pycodestyle_output):
 
 
 def transform_filestr_to_vulture(filestr_output):
-    local_dct = deepcopy(transform_dct)
+    local_dct = dict()
     local_dct.update(
         {
             "checker": "filestr",
@@ -315,7 +315,7 @@ def raw_update_or_create(filename):
 
 
 def calc_group_line(filename):
-    group_line = defaultdict(list)    
+    group_line = defaultdict(list)
     res = run_flake8(filename)
     for flake8_output in res:
         r = transform_flake8_to_vulture(flake8_output)
@@ -374,8 +374,6 @@ def get_checker_code(filename):
     accumulator = set()
     checker_code_dct = load_json("settings", "checker_code.json", default=[])
     ret = group_line_update_or_create(filename)
-    print(ret)
-    print()
     for _, checks in ret.items():
         for test in checks:
             key = test["checker"], test["code"]
@@ -385,13 +383,15 @@ def get_checker_code(filename):
             test.pop("file")
             test.pop("line")
             test.pop("column")
+            test.pop("column_end")
             test.pop("physical")
             test.pop("issue_confidence")
             test.pop("issue_cwe_id")
             test.pop("issue_cwe_link")
             test.pop("issue_severity")
             test.pop("message")
-            test.pop("more_info")
+            if "more_info" in test:
+                test.pop("more_info")
             checker_code_dct.append(test)
     save_json("settings", "checker_code.json", checker_code_dct)
     return checker_code_dct
@@ -414,29 +414,7 @@ def get_teacher(filename):
     return teacher_sorted_lst
 
 
-def combine_filename(name):
-    return f'{name}_combine.json'
-
 if __name__ == "__main__":
-    root_dir = 'fixtures'
-    py_files = scan_python_files(root_dir)
-    for idx, (full_path, filename, md5_hash) in enumerate(py_files, 1):
-        rel_path = os.path.relpath(full_path, root_dir)
-        group_line = group_line_update_or_create(full_path)
-        res = run_filestr(full_path)
-        for r in res:
-            r['errors'] = group_line.get(str(r['line']), [])
-        save_json('data', combine_filename(md5_hash), res)
-
-    for _, _, md5_hash in py_files:
-        res = load_json('data', combine_filename(md5_hash))
-        for r in res:
-            print(r['line'], '\t', r['raw'])
-            for e in r['errors']:
-                ret = create_key(e['checker'], e['code'])
-                print('🔴', e['code'], '|', e['checker'])
-                print('🔴', e['message'][:80])
-                print('🔴', e['color'], '|', e['code_name'])
-                print('🔴', ret)
-                print('=' * 80)
-        print('-' * 80)
+    teacher_lst = load_json("settings", "teacher.json", default=[])
+    for teacher in teacher_lst:
+        print(teacher)
