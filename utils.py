@@ -10,7 +10,6 @@ settings_dct = load_json("settings", "app.json")
 data_dir = settings_dct.get("data_dir", "data")
 exclude_dirs = settings_dct.get("exclude_dirs", [])
 transform_dct = settings_dct.get("transform_dct", {})
-group_dct = settings_dct.get("group_dct", {})
 
 
 EXCLUDE_DIRS_BASE = {
@@ -212,7 +211,7 @@ def transform_pylint_to_vulture(pylint_output):
 def transform_mypy_to_vulture(mypy_output):
     local_dct = deepcopy(transform_dct)
     code_str = mypy_output["code"]
-    code = f"MY{sum(map(ord, code_str))}"
+    code = f"MY{str_to_md5(code_str)[:8].upper()}"
     local_dct.update(
         {
             "code": code,
@@ -232,7 +231,7 @@ def transform_mypy_to_vulture(mypy_output):
 def transform_vulture_to_vulture(vulture_output):
     local_dct = deepcopy(transform_dct)
     code_str = "".join(vulture_output["message"].split()[:2])
-    code = f"VU{sum(map(ord, code_str))}"
+    code = f"VU{str_to_md5(code_str)[:8].upper()}"
     local_dct.update(
         {
             "code": code,
@@ -249,7 +248,7 @@ def transform_pycodestyle_to_vulture(pycodestyle_output):
     local_dct = deepcopy(transform_dct)
     local_dct.update(
         {
-            "checker": "vulture",
+            "checker": "pycodestyle",
             "code": pycodestyle_output["code"],
             "column": pycodestyle_output["column"],
             "line": pycodestyle_output["line"],
@@ -299,27 +298,27 @@ def calc_group_line(filename):
     res = run_flake8(filename)
     for flake8_output in res:
         r = transform_flake8_to_vulture(flake8_output)
-        group_line[r["line"]].append(r)
+        group_line[str(r["line"])].append(r)
     res = run_bandit(filename)
     for bandit_output in res:
         r = transform_bandit_to_vulture(bandit_output)
-        group_line[r["line"]].append(r)
+        group_line[str(r["line"])].append(r)
     res = run_pylint(filename)
     for pylint_output in res:
         r = transform_pylint_to_vulture(pylint_output)
-        group_line[r["line"]].append(r)
+        group_line[str(r["line"])].append(r)
     res = run_mypy(filename)
     for mypy_output in res:
         r = transform_mypy_to_vulture(mypy_output)
-        group_line[r["line"]].append(r)
+        group_line[str(r["line"])].append(r)
     res = run_vulture(filename)
     for vulture_output in res:
         r = transform_vulture_to_vulture(vulture_output)
-        group_line[r["line"]].append(r)
+        group_line[str(r["line"])].append(r)
     res = run_pycodestyle(filename)
     for pycodestyle_output in res:
         r = transform_pycodestyle_to_vulture(pycodestyle_output)
-        group_line[r["line"]].append(r)
+        group_line[str(r["line"])].append(r)
     return group_line
 
 
@@ -362,16 +361,16 @@ def get_checker_code(filename):
             if key in accumulator:
                 continue
             accumulator.add(key)
-            test.pop("file")
-            test.pop("line")
-            test.pop("column")
-            test.pop("physical")
-            test.pop("issue_confidence")
-            test.pop("issue_cwe_id")
-            test.pop("issue_cwe_link")
-            test.pop("issue_severity")
-            test.pop("message")
-            test.pop("more_info")
+            test.pop("file", None)
+            test.pop("line", None)
+            test.pop("column", None)
+            test.pop("physical", None)
+            test.pop("issue_confidence", None)
+            test.pop("issue_cwe_id", None)
+            test.pop("issue_cwe_link", None)
+            test.pop("issue_severity", None)
+            test.pop("message", None)
+            test.pop("more_info", None)
             checker_code_dct.append(test)
     save_json("settings", "checker_code.json", checker_code_dct)
     return checker_code_dct
@@ -403,8 +402,6 @@ def create_str_key(a, b, c):
 
 
 if __name__ == "__main__":
-    import uuid
-
     root_dir = "fixtures"
     py_files = scan_python_files(root_dir)
     for idx, (full_path, filename, md5_hash) in enumerate(py_files, 1):
@@ -415,30 +412,32 @@ if __name__ == "__main__":
             r["errors"] = group_line.get(str(r["line"]), [])
         save_json("data", combine_filename(md5_hash), res)
 
-    one_group = load_json("group", "one2group.json")
-    group = load_json("group", "group.json")
-    for _, _, md5_hash in py_files:
-        res = load_json("data", combine_filename(md5_hash))
-        for row in res:
-            print(row["line"], "\t", row["raw"])
-            for err in row["errors"]:
-                ret = "|".join([err["checker"], err["code"], err["code_name"] or ""])
-                key = one_group.setdefault(ret, uuid.uuid4().hex)
-                group_dct = deepcopy(group_dct)
-                group_dct.update(
-                    {
-                        "code_name": err["code_name"],
-                        "message": err["message"],
-                        "more_info": err["more_info"],
-                        "issue_severity": err["issue_severity"],
-                        "type": err["type"],
-                        "physical": err["physical"],
-                    }
-                )
-                group.setdefault(key, group_dct)
+    # one_group = load_json("group", "one2group.json")
+    # group = load_json("group", "group.json")
+    # for _, _, md5_hash in py_files:
+    #     res = load_json("data", combine_filename(md5_hash))
+    #     for row in res:
+    #         print(row["line"], "\t", row["raw"])
+    #         for err in row["errors"]:
+    #             ret = "|".join(
+    #                 [err["checker"], err["code"], err.get("code_name") or ""]
+    #             )
+    #             key = one_group.setdefault(ret, uuid.uuid4().hex)
+    #             local_group_dct = deepcopy(group_dct)
+    #             local_group_dct.update(
+    #                 {
+    #                     "code_name": err.get("code_name"),
+    #                     "message": err.get("message"),
+    #                     "more_info": err.get("more_info"),
+    #                     "issue_severity": err.get("issue_severity"),
+    #                     "type": err.get("type"),
+    #                     "physical": err.get("physical"),
+    #                 }
+    #             )
+    #             group.setdefault(key, local_group_dct)
 
-                print("🔴", err["code"], "|", err["checker"], "|", err["code_name"])
-                print("🔴", ret, err["message"][:80])
-        print("-" * 80)
-    save_json("group", "one2group.json", one_group)
-    save_json("group", "group.json", group)
+    #             print("🔴", err["code"], "|", err["checker"], "|", err.get("code_name"))
+    #             print("🔴", ret, err.get("message", "")[:80])
+    #     print("-" * 80)
+    # save_json("group", "one2group.json", one_group)
+    # save_json("group", "group.json", group)

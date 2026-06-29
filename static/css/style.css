@@ -1,0 +1,112 @@
+
+/* === Список файлов === */
+.file-list {
+    flex: 0 0 300px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.file-item {
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.file-item:hover {
+    background-color: #f1f1f1;
+}
+
+.file-item.active {
+    background-color: #e7f3ff;
+    border-right: 3px solid #0d6efd;
+}
+
+.path-text {
+    font-family: monospace;
+    font-size: 0.875em;
+    color: #6c757d;
+}
+
+/* === Код и подсветка === */
+pre {
+    white-space: pre-wrap;
+    font-family: "Courier New", Courier, monospace;
+    margin: 0;
+}
+
+.show-code td {
+    padding: 0;
+    margin: 0;
+}
+
+.show-code .language-python {
+    margin: 0;
+    padding: 0;
+}
+
+.show-code pre,
+.show-code code {
+    white-space: break-spaces;
+}
+
+/* === Кнопка-треугольник (Bootstrap-совместимая) === */
+.triangle-btn {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    line-height: 1;
+    color: #0d6efd;
+    transition: transform 0.2s ease;
+    padding: 0.25rem;
+}
+
+.triangle-btn:hover {
+    color: #0a58ca;
+}
+
+.triangle-btn:not(.collapsed) {
+    transform: rotate(90deg);
+}
+
+.triangle-btn::after {
+    content: "▶";
+}
+
+.triangle-btn:not(.collapsed)::after {
+    content: "▼";
+}
+
+/* === Строка с деталями === */
+.details-row {
+    background-color: #f8f9fa;
+}
+
+.details-row .card {
+    border: none;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* === Offcanvas настройки === */
+#settingsOffcanvas .form-label {
+    font-weight: 500;
+}
+
+#settingsOffcanvas .form-range::-webkit-slider-thumb {
+    background: #0d6efd;
+}
+
+#settingsOffcanvas .form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+/* === Анимация появления (опционально) === */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease forwards;
+}

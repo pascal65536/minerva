@@ -1,0 +1,222 @@
+<div class="card mb-3">
+    <div class="card-header {% if group.is_hide %}bg-secondary text-white{% else %}bg-{{ group.color }} text-white{% endif %}">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="group_keys"
+                        value="{{ group.group_key }}" id="group-{{ group.group_key }}"
+                        {% if group.is_hide %}disabled{% endif %}>
+                    <label class="form-check-label fw-bold" for="group-{{ group.group_key }}">
+                        {{ group.name or group.group_key }}
+                    </label>
+                </div>
+                {% if group.translate %}
+                <span class="badge bg-light text-dark">{{ group.translate }}</span>
+                {% endif %}
+                
+                <!-- НОВЫЕ БЕЙДЖИ -->
+                {% if group.issue_severity %}
+                <span class="badge bg-{% if group.issue_severity == 'HIGH' %}danger{% elif group.issue_severity == 'MEDIUM' %}warning{% else %}info{% endif %}">
+                    {{ group.issue_severity }}
+                </span>
+                {% endif %}
+                {% if group.issue_confidence %}
+                <span class="badge bg-secondary">{{ group.issue_confidence }}</span>
+                {% endif %}
+                {% if group.issue_cwe_id %}
+                <a href="{{ group.issue_cwe_link or '#' }}" target="_blank" class="badge bg-dark text-decoration-none">
+                    CWE-{{ group.issue_cwe_id }}
+                </a>
+                {% endif %}
+            </div>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-light" data-bs-toggle="collapse"
+                    data-bs-target="#edit-form-{{ group.group_key }}">
+                    <i class="fa fa-pencil"></i>
+                </button>
+                <button type="submit" name="action" value="split" class="btn btn-light"
+                    onclick="document.getElementById('global-group-key').value='{{ group.group_key }}';">
+                    <i class="fa fa-object-ungroup"></i>
+                </button>
+                <button type="submit" name="action" value="toggle_hide" class="btn btn-light"
+                    onclick="document.getElementById('global-group-key').value='{{ group.group_key }}';">
+                    {% if group.is_hide %}
+                    <i class="fa fa-eye"></i>
+                    {% else %}
+                    <i class="fa fa-eye-slash"></i>
+                    {% endif %}
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        <!-- Форма редактирования -->
+        <div class="collapse mb-3" id="edit-form-{{ group.group_key }}">
+            <div class="card border mb-3">
+                <div class="card-body">
+                    <h6 class="card-title mb-3">Редактирование группы: {{ group.group_key }}</h6>
+                    <form method="POST" action="{{ url_for('group_action') }}">
+                        <input type="hidden" name="edit_group_key" value="{{ group.group_key }}">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small">Название</label>
+                                <input type="text" class="form-control form-control-sm" name="edit_name" value="{{ group.name or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Алиас</label>
+                                <input type="text" class="form-control form-control-sm" name="edit_translate" value="{{ group.translate or '' }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small">Описание</label>
+                                <textarea class="form-control form-control-sm" name="edit_descriptions" rows="2">{{ group.descriptions or '' }}</textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Источник (URL)</label>
+                                <input type="url" class="form-control form-control-sm" name="edit_source_url" value="{{ group.source_url or '' }}" placeholder="https://...">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Цвет</label>
+                                <select class="form-select form-select-sm" name="edit_color">
+                                    <option value="primary" {% if group.color == 'primary' %}selected{% endif %} style="background-color: #0d6efd; color: white;">🔵 Primary</option>
+                                    <option value="secondary" {% if group.color == 'secondary' %}selected{% endif %} style="background-color: #6c757d; color: white;">⚪ Secondary</option>
+                                    <option value="success" {% if group.color == 'success' %}selected{% endif %} style="background-color: #198754; color: white;">🟢 Success</option>
+                                    <option value="danger" {% if group.color == 'danger' %}selected{% endif %} style="background-color: #dc3545; color: white;">🔴 Danger</option>
+                                    <option value="warning" {% if group.color == 'warning' %}selected{% endif %} style="background-color: #ffc107; color: #000;">🟡 Warning</option>
+                                    <option value="info" {% if group.color == 'info' %}selected{% endif %} style="background-color: #0dcaf0; color: #000;">🔵 Info</option>
+                                    <option value="dark" {% if group.color == 'dark' %}selected{% endif %} style="background-color: #212529; color: white;">⚫ Dark</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small">Best Practice (поддерживает Markdown)</label>
+                                <textarea class="form-control form-control-sm font-monospace" name="edit_best_practice" rows="4" placeholder="- Используйте `sys.exit`&#10;- Избегайте `eval()`">{{ group.best_practice or '' }}</textarea>
+                                <div class="form-text small text-muted">Используйте дефис `-` для списков, `**жирный**` для выделения.</div>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" name="action" value="edit" class="btn btn-sm btn-primary w-100">
+                                    <i class="fa fa-save"></i> Сохранить
+                                </button>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label small">Severity</label>
+                                <input type="text" class="form-control form-control-sm" name="edit_issue_severity" value="{{ group.issue_severity or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Confidence</label>
+                                <input type="text" class="form-control form-control-sm" name="edit_issue_confidence" value="{{ group.issue_confidence or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">CWE ID</label>
+                                <input type="text" class="form-control form-control-sm" name="edit_issue_cwe_id" value="{{ group.issue_cwe_id or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">CWE Link</label>
+                                <input type="url" class="form-control form-control-sm" name="edit_issue_cwe_link" value="{{ group.issue_cwe_link or '' }}">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small">More Info (URL)</label>
+                                <input type="url" class="form-control form-control-sm" name="edit_more_info" value="{{ group.more_info or '' }}">
+                            </div>
+
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Отображение данных -->
+        {% if group.descriptions %}
+        <div class="alert alert-secondary small">
+            <i class="fa fa-info-circle"></i> {{ group.descriptions }}
+        </div>
+        {% endif %}
+        
+        {% if group.source_url %}
+        <div class="mb-2">
+            <a href="{{ group.source_url }}" target="_blank" class="btn btn-sm btn-outline-info">
+                <i class="fa fa-external-link"></i> Источник
+            </a>
+        </div>
+        {% endif %}
+
+        {% if group.best_practice %}
+        <div class="alert alert-info small mb-3">
+            <i class="fa fa-lightbulb"></i> <strong>Best Practice:</strong>
+            <div class="mt-1" style="white-space: pre-wrap;">
+                {{ group.best_practice | markdown | safe }}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if group.more_info %}
+        <div class="alert alert-light small mb-3">
+            <i class="fa fa-info-circle"></i> <strong>Подробнее:</strong>
+            <a href="{{ group.more_info }}" target="_blank" class="ms-1">{{ group.more_info }}</a>
+        </div>
+        {% endif %}
+
+        {% if group.checker_codes %}
+        <div>
+            {% for cc in group.checker_codes %}
+            {% set cc_index = loop.index %}
+            <div class="card mb-2">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <span class="badge bg-{{ group.color }} me-2">{{ cc.checker }}</span>
+                            <code class="fw-bold">{{ cc.code }}</code>
+                        </div>
+                        <small class="text-muted">строка {{ line_num }}</small>
+                    </div>
+                    {% if cc.raw.get("message") %}
+                    <div class="alert alert-{{ group.color }} p-2 small">
+                        <i class="fa fa-exclamation-triangle"></i>
+                        <strong>{{ cc.raw.get("message") }}</strong>
+                    </div>
+                    {% endif %}
+                    <button class="btn btn-sm btn-outline-secondary mt-2" type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#raw-data-{{ line_num }}-{{ group.group_key }}-{{ cc_index }}">
+                        <i class="fa fa-code"></i> Данные
+                    </button>
+                    <div class="collapse mt-2" id="raw-data-{{ line_num }}-{{ group.group_key }}-{{ cc_index }}">
+                        <div class="card border">
+                            <div class="card-body p-2 bg-light">
+<ul class="list-unstyled mb-0">
+    {% for key, value in cc.raw.items() %}
+        {# Проверяем, что значение не равно None, не пустая строка и не строка 'None' #}
+        {% if value is not none and value != '' and value != 'None' %}
+        <li class="mb-2">
+            <strong>{{ key }}:</strong>
+            <code class="small">
+                {% if value is string and value|length > 100 %}
+                {{ value[:100] }}...
+                <button type="button" class="btn btn-link btn-sm p-0 ms-2"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#full-text-{{ line_num }}-{{ group.group_key }}-{{ cc_index }}-{{ loop.index }}">
+                    полностью
+                </button>
+                <div class="collapse mt-1" id="full-text-{{ line_num }}-{{ group.group_key }}-{{ cc_index }}-{{ loop.index }}">
+                    <pre class="small mb-0">{{ value }}</pre>
+                </div>
+                {% else %}
+                {{ value }}
+                {% endif %}
+            </code>
+        </li>
+        {% endif %}
+    {% endfor %}
+</ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted small mb-0">Нет деталей ошибок.</p>
+        {% endif %}
+    </div>
+</div>

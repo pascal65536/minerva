@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Основной макет: список файлов + отчет -->
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Левая колонка: список файлов -->
+        <div class="col-md-3">
+
+            <!-- Ввод пути к директории -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <i class="fa fa-folder" aria-hidden="true"></i> Выбор проекта
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.project_path.label(class="form-label") }}
+                            <div class="input-group">
+                                {{ form.project_path(class="form-control", placeholder="/home/user/myproject", required=true) }}
+                                <button type="submit" class="btn btn-primary"><i class="fa fa-check-square-o" aria-hidden="true"></i> Сканировать</button>
+                            </div>
+                            {% if form.project_path.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.project_path.errors %}
+                                    <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+                                    {{ error }}{% if not loop.last %}<br>{% endif %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="file-list card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fa fa-file" aria-hidden="true"></i> Файлы проекта
+                    </div>
+                    <div>
+                        <a href="{{ url_for('refresh_all') }}" class="btn btn-sm btn-outline-secondary">Обновить все</a>
+                    </div>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% if files_lst and files_lst|length > 0 %}
+                    {% for info, file, key in files_lst %}
+                    <li class="list-group-item p-0">
+                        <a href="{{ url_for('index', key=key) }}"
+                            class="file-item w-100 d-block text-decoration-none text-dark {% if key == selected_key %}active{% endif %}">
+                            <div>{{ file }}</div>
+                            <div class="path-text">{{ info }}</div>
+                        </a>
+                    </li>
+                    {% endfor %}
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Правая колонка: отчет -->
+        <div class="col-md-9">
+            {% if selected_key and selected_file_info %}
+            {% include 'content.html' %}
+            {% else %}
+            <p>Не выбран файл</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
